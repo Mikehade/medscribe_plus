@@ -1,0 +1,861 @@
+/* ── MedScribe+ Design System ──────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Syne:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --ms-bg: #0b0e13;
+  --ms-surface: #111520;
+  --ms-surface2: #161c28;
+  --ms-border: #1e2535;
+  --ms-border-hover: #2d3a52;
+  --ms-accent: #4f8ef7;
+  --ms-accent-dim: rgba(79, 142, 247, 0.12);
+  --ms-accent-glow: rgba(79, 142, 247, 0.25);
+  --ms-green: #34d399;
+  --ms-amber: #fbbf24;
+  --ms-red: #f87171;
+  --ms-muted: #4a5568;
+  --ms-text: #e2e8f0;
+  --ms-text-dim: #8897ae;
+  --ms-font-display: 'Syne', sans-serif;
+  --ms-font-mono: 'DM Mono', monospace;
+  --ms-radius: 12px;
+  --ms-radius-sm: 8px;
+  --ms-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--ms-bg);
+  color: var(--ms-text);
+  font-family: var(--ms-font-display);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Page layout ────────────────────────────────────────────────── */
+.ms-page {
+  min-height: 100vh;
+  padding: 32px 24px 64px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.ms-page-header {
+  margin-bottom: 32px;
+}
+
+.ms-breadcrumb {
+  font-size: 12px;
+  color: var(--ms-muted);
+  font-family: var(--ms-font-mono);
+  margin-bottom: 8px;
+  letter-spacing: 0.05em;
+}
+
+.ms-breadcrumb span {
+  margin: 0 6px;
+  opacity: 0.4;
+}
+
+.ms-page-title {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ms-text);
+  line-height: 1.1;
+}
+
+.ms-page-sub {
+  font-size: 14px;
+  color: var(--ms-text-dim);
+  margin-top: 6px;
+  font-weight: 400;
+}
+
+.ms-layout {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .ms-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ms-left,
+.ms-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Card ──────────────────────────────────────────────────────── */
+.ms-card {
+  background: var(--ms-surface);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius);
+  padding: 20px;
+  box-shadow: var(--ms-shadow);
+}
+
+.ms-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.ms-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ms-text-dim);
+  font-family: var(--ms-font-mono);
+}
+
+/* ── Recorder card ─────────────────────────────────────────────── */
+.ms-recorder-card {
+  text-align: center;
+  padding: 32px 24px;
+}
+
+.ms-recorder-vis {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  min-height: 80px;
+  justify-content: center;
+}
+
+/* Pulse ring */
+.ms-pulse-ring {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 2px solid var(--ms-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: border-color 0.3s;
+}
+
+.ms-pulse-ring.active {
+  border-color: var(--ms-red);
+  animation: ring-pulse 1.5s ease-in-out infinite;
+}
+
+.ms-pulse-ring.active::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  animation: ring-expand 1.5s ease-in-out infinite;
+}
+
+.ms-pulse-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--ms-muted);
+  transition: background 0.3s;
+}
+
+.ms-pulse-dot.active {
+  background: var(--ms-red);
+  animation: dot-blink 1s ease-in-out infinite;
+}
+
+@keyframes ring-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.3); }
+  50% { box-shadow: 0 0 0 12px rgba(248, 113, 113, 0); }
+}
+
+@keyframes ring-expand {
+  0% { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+@keyframes dot-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Waveform */
+.ms-waveform {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 32px;
+}
+
+.ms-wave-bar {
+  width: 3px;
+  background: var(--ms-accent);
+  border-radius: 2px;
+  animation: wave-anim 0.8s ease-in-out infinite alternate;
+  min-height: 4px;
+}
+
+@keyframes wave-anim {
+  0% { height: 4px; opacity: 0.4; }
+  100% { height: 28px; opacity: 1; }
+}
+
+/* Recorder status */
+.ms-recorder-status {
+  margin-bottom: 12px;
+}
+
+.ms-status-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ms-text-dim);
+  font-family: var(--ms-font-mono);
+}
+
+.ms-status-label.green { color: var(--ms-green); }
+.ms-status-label.amber { color: var(--ms-amber); }
+.ms-status-label.red   { color: var(--ms-red); }
+
+.ms-timer {
+  font-size: 16px;
+  font-weight: 600;
+  font-family: var(--ms-font-mono);
+  color: var(--ms-red);
+  margin-left: 8px;
+}
+
+.ms-recorder-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.ms-session-id {
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--ms-muted);
+  font-family: var(--ms-font-mono);
+}
+
+.ms-session-id code {
+  background: var(--ms-surface2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────── */
+.ms-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--ms-radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--ms-font-display);
+  cursor: pointer;
+  border: none;
+  transition: all 0.18s ease;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.ms-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ms-btn-primary {
+  background: var(--ms-accent);
+  color: #fff;
+}
+
+.ms-btn-primary:hover:not(:disabled) {
+  background: #6ba3f9;
+  box-shadow: 0 0 20px var(--ms-accent-glow);
+}
+
+.ms-btn-danger {
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--ms-red);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+.ms-btn-danger:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.25);
+}
+
+.ms-btn-ghost {
+  background: var(--ms-surface2);
+  color: var(--ms-text-dim);
+  border: 1px solid var(--ms-border);
+}
+
+.ms-btn-ghost:hover:not(:disabled) {
+  border-color: var(--ms-border-hover);
+  color: var(--ms-text);
+}
+
+.ms-btn-approve {
+  background: rgba(52, 211, 153, 0.12);
+  color: var(--ms-green);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+.ms-btn-approve:hover:not(:disabled) {
+  background: rgba(52, 211, 153, 0.22);
+  box-shadow: 0 0 16px rgba(52, 211, 153, 0.15);
+}
+
+.ms-btn-icon-only {
+  background: none;
+  border: none;
+  color: var(--ms-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.ms-btn-icon-only:hover {
+  color: var(--ms-red);
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.ms-rec-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.ms-stop-sq {
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+/* ── Transcript card ───────────────────────────────────────────── */
+.ms-transcript-card .ms-transcript-body {
+  min-height: 100px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.ms-transcript-text {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ms-text);
+  font-family: var(--ms-font-mono);
+  white-space: pre-wrap;
+}
+
+.ms-transcript-empty {
+  font-size: 13px;
+  color: var(--ms-muted);
+  font-style: italic;
+}
+
+.ms-live-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--ms-red);
+  font-family: var(--ms-font-mono);
+  animation: badge-blink 1.2s ease-in-out infinite;
+}
+
+.ms-badge-done {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ms-green);
+  font-family: var(--ms-font-mono);
+  letter-spacing: 0.05em;
+  background: rgba(52, 211, 153, 0.1);
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+@keyframes badge-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ── Processing card ───────────────────────────────────────────── */
+.ms-processing-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 32px;
+  text-align: center;
+}
+
+.ms-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--ms-border);
+  border-top-color: var(--ms-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.ms-processing-label {
+  font-size: 14px;
+  color: var(--ms-text-dim);
+  font-weight: 500;
+}
+
+.ms-processing-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  width: 100%;
+}
+
+.ms-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ms-muted);
+  font-family: var(--ms-font-mono);
+  animation: step-fade 0.6s ease forwards;
+  opacity: 0;
+}
+
+@keyframes step-fade {
+  to { opacity: 0.8; color: var(--ms-text-dim); }
+}
+
+.ms-step-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ms-accent);
+  flex-shrink: 0;
+}
+
+/* ── Scores card ───────────────────────────────────────────────── */
+.ms-scores-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 700px) {
+  .ms-scores-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.ms-score-cell {
+  background: var(--ms-surface2);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-sm);
+  padding: 12px;
+  text-align: center;
+}
+
+.ms-score-val {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--ms-font-mono);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.ms-score-label {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ms-muted);
+  font-family: var(--ms-font-mono);
+  margin-bottom: 8px;
+}
+
+.ms-score-bar-bg {
+  height: 3px;
+  background: var(--ms-border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.ms-score-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.8s ease;
+}
+
+.ms-ready-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ms-green);
+  background: rgba(52, 211, 153, 0.1);
+  border: 1px solid rgba(52, 211, 153, 0.2);
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-family: var(--ms-font-mono);
+}
+
+/* ── Alert card ────────────────────────────────────────────────── */
+.ms-alert-card {
+  border-color: rgba(251, 191, 36, 0.25);
+  background: rgba(251, 191, 36, 0.04);
+}
+
+.ms-alert-header {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ms-amber);
+  margin-bottom: 10px;
+  letter-spacing: 0.03em;
+}
+
+.ms-alert-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--ms-border);
+}
+
+.ms-alert-item:last-child { border-bottom: none; }
+
+.ms-alert-text { color: var(--ms-text-dim); line-height: 1.5; }
+
+.ms-severity {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  font-family: var(--ms-font-mono);
+}
+
+.ms-sev-severe { background: rgba(248, 113, 113, 0.2); color: var(--ms-red); }
+.ms-sev-moderate { background: rgba(251, 191, 36, 0.2); color: var(--ms-amber); }
+.ms-sev-mild { background: rgba(52, 211, 153, 0.1); color: var(--ms-green); }
+
+/* ── Tabs ──────────────────────────────────────────────────────── */
+.ms-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--ms-border);
+  margin: -4px -4px 16px;
+  padding: 0 4px;
+}
+
+.ms-tab {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--ms-font-display);
+  color: var(--ms-muted);
+  padding: 8px 14px 10px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+  letter-spacing: 0.03em;
+}
+
+.ms-tab:hover { color: var(--ms-text-dim); }
+.ms-tab.active { color: var(--ms-accent); border-bottom-color: var(--ms-accent); }
+
+/* ── SOAP note ─────────────────────────────────────────────────── */
+.ms-soap { display: flex; flex-direction: column; gap: 14px; }
+
+.ms-soap-section {
+  padding: 12px;
+  background: var(--ms-surface2);
+  border-radius: var(--ms-radius-sm);
+  border: 1px solid var(--ms-border);
+}
+
+.ms-soap-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ms-accent);
+  font-family: var(--ms-font-mono);
+  margin-bottom: 6px;
+}
+
+.ms-soap-text {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--ms-text);
+}
+
+.ms-codes-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.ms-code-badge {
+  font-size: 11px;
+  font-family: var(--ms-font-mono);
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.ms-icd { background: rgba(79, 142, 247, 0.12); color: var(--ms-accent); border: 1px solid rgba(79, 142, 247, 0.2); }
+.ms-cpt { background: rgba(52, 211, 153, 0.08); color: var(--ms-green); border: 1px solid rgba(52, 211, 153, 0.2); }
+
+/* ── Details tab ───────────────────────────────────────────────── */
+.ms-details { display: flex; flex-direction: column; gap: 8px; }
+
+.ms-suggestion {
+  font-size: 13px;
+  color: var(--ms-text-dim);
+  padding: 8px 12px;
+  background: rgba(79, 142, 247, 0.05);
+  border-left: 3px solid var(--ms-accent);
+  border-radius: 0 6px 6px 0;
+  line-height: 1.5;
+}
+
+.ms-missing {
+  font-size: 13px;
+  color: var(--ms-text-dim);
+  padding: 8px 12px;
+  background: rgba(251, 191, 36, 0.05);
+  border-left: 3px solid var(--ms-amber);
+  border-radius: 0 6px 6px 0;
+  line-height: 1.5;
+}
+
+.ms-missing strong { color: var(--ms-amber); }
+
+.ms-patient-ctx { margin-top: 12px; }
+
+.ms-ctx-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--ms-border);
+  font-size: 13px;
+}
+
+.ms-ctx-key { color: var(--ms-muted); font-family: var(--ms-font-mono); font-size: 12px; }
+.ms-ctx-val { color: var(--ms-text); }
+
+/* ── Transcript full ───────────────────────────────────────────── */
+.ms-transcript-full {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--ms-text-dim);
+  font-family: var(--ms-font-mono);
+  max-height: 300px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+/* ── Approve bar ───────────────────────────────────────────────── */
+.ms-approve-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: linear-gradient(135deg, rgba(52, 211, 153, 0.05), var(--ms-surface));
+  border-color: rgba(52, 211, 153, 0.15);
+}
+
+.ms-approve-left { display: flex; flex-direction: column; gap: 3px; }
+.ms-approve-label { font-size: 14px; font-weight: 600; color: var(--ms-text); }
+.ms-approve-sub { font-size: 12px; color: var(--ms-muted); }
+.ms-approve-right { flex-shrink: 0; }
+
+/* ── Empty state ───────────────────────────────────────────────── */
+.ms-empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  border-style: dashed;
+}
+
+.ms-empty-icon { font-size: 40px; margin-bottom: 12px; }
+
+.ms-empty-text {
+  font-size: 14px;
+  color: var(--ms-muted);
+  line-height: 1.6;
+}
+
+/* ── Error banner ──────────────────────────────────────────────── */
+.ms-error-banner {
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  color: var(--ms-red);
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: var(--ms-radius-sm);
+  margin: 12px 0 4px;
+}
+
+/* ── Upload drop zone ──────────────────────────────────────────── */
+.ms-dropzone {
+  border: 2px dashed var(--ms-border);
+  border-radius: var(--ms-radius);
+  padding: 40px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.ms-dropzone:hover {
+  border-color: var(--ms-accent);
+  background: var(--ms-accent-dim);
+}
+
+.ms-dropzone.drag-over {
+  border-color: var(--ms-accent);
+  background: rgba(79, 142, 247, 0.08);
+}
+
+.ms-drop-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ms-text);
+  margin-top: 4px;
+}
+
+.ms-drop-sub {
+  font-size: 12px;
+  color: var(--ms-muted);
+  font-family: var(--ms-font-mono);
+}
+
+/* ── File preview ──────────────────────────────────────────────── */
+.ms-file-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--ms-surface2);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-sm);
+  margin-bottom: 16px;
+}
+
+.ms-file-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ms-file-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ms-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ms-file-meta {
+  font-size: 11px;
+  color: var(--ms-muted);
+  font-family: var(--ms-font-mono);
+}
+
+/* ── Field / Input ─────────────────────────────────────────────── */
+.ms-field { margin-bottom: 16px; }
+
+.ms-field-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ms-muted);
+  font-family: var(--ms-font-mono);
+  margin-bottom: 6px;
+}
+
+.ms-input {
+  width: 100%;
+  background: var(--ms-surface2);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-sm);
+  color: var(--ms-text);
+  font-size: 14px;
+  font-family: var(--ms-font-mono);
+  padding: 9px 12px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.ms-input:focus { border-color: var(--ms-accent); }
+.ms-input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Progress bar ──────────────────────────────────────────────── */
+.ms-progress-wrap {
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ms-progress-bar {
+  height: 4px;
+  background: var(--ms-border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.ms-progress-fill {
+  height: 100%;
+  background: var(--ms-accent);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+.ms-progress-label {
+  font-size: 11px;
+  color: var(--ms-muted);
+  font-family: var(--ms-font-mono);
+}
+
+/* ── Scrollbar styling ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--ms-surface); }
+::-webkit-scrollbar-thumb { background: var(--ms-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ms-border-hover); }

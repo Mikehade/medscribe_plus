@@ -1,0 +1,12 @@
+fastapi==0.131.0
+colorlog==6.10.1
+dependency_injector==4.48.3
+SQLAlchemy==2.0.47
+redis==7.2.0
+pydantic_settings==2.13.1
+uvicorn==0.40.0
+boto3==1.42.61
+aioboto3==7.0.0
+jinja2==3.1.6
+python-multipart==0.0.22
+pytz==2026.1.post1

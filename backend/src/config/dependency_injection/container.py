@@ -1,0 +1,240 @@
+from dependency_injector import containers, providers
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from contextlib import asynccontextmanager
+
+from src.config.base import get_settings
+
+# Middleware imports
+# from src.infrastructure.middleware.auth import JWTAuthMiddleware
+# from src.infrastructure.middleware.socket import WebSocketAuthMiddleware
+
+# Repository imports
+# from src.infrastructure.repository.auth import AuthRepository
+
+
+# Service Imports
+from src.infrastructure.services.transcription import TranscriptionService
+from src.infrastructure.services.patient import PatientService
+from src.infrastructure.services.soap import SOAPService
+from src.infrastructure.services.evaluation import EvaluationService
+
+# Consumer Imports
+# from src.api.elle.consumer import StudyPermitApplicationConsumer
+
+# Agent Imports
+from src.core.agents.scribe import ScribeAgent
+
+# Language Model Imports
+from src.infrastructure.language_models.bedrock import BedrockModel
+from src.infrastructure.language_models.sonic import SonicModel
+
+# Guided Json imports (if needed)
+
+# Tools imports
+from src.core.tools.base import ToolRegistry
+from src.core.tools.evaluation import EvaluationTools
+from src.core.tools.patient import PatientTools
+from src.core.tools.soap import SOAPTools
+
+# Prompts imports
+from src.core.prompts.scribe import ScribePrompt
+
+# Redis imports
+from src.infrastructure.cache.redis.client import RedisClient
+from src.infrastructure.cache.redis.manager import RedisCacheManager
+from src.infrastructure.cache.service import CacheService
+
+# Consumers
+from src.api.scribe.consumer import ScribeConsumer
+
+
+class Container(containers.DeclarativeContainer):
+    """
+    DI container for creating factories and singletons used by services.
+    """
+    config = providers.Singleton(get_settings)
+
+    # --- Database ---
+    # db_engine = providers.Singleton(
+    #     create_async_engine,
+    #     providers.Callable(
+    #         lambda cfg: cfg.SQLALCHEMY_DATABASE_URI.replace("postgresql://", "postgresql+asyncpg://"),
+    #         config
+    #     ),
+    #     pool_size=20,
+    #     max_overflow=10,
+    #     pool_timeout=30,
+    #     # pool_recycle=3600,
+    #     pool_recycle=300, # reduce recycle time to 5 minutes
+    #     pool_pre_ping=True,
+
+    #     # Additional settings for stale connections
+    #     connect_args={
+    #         "timeout": 60,  # Connection timeout
+    #         "command_timeout": 60,  # Command execution timeout
+    #         "server_settings": {
+    #             "application_name": "elle_fastapi",
+    #             "jit": "off"
+    #         }
+    #     },
+        
+    #     # Reset connections on return to pool
+    #     pool_reset_on_return='rollback',
+
+    #     # Enable echo for debugging (disable in production)
+    #     # echo=True,
+    # )
+
+    # session_factory = providers.Singleton(
+    #     async_sessionmaker,
+    #     bind=db_engine,
+    #     expire_on_commit=False,
+    #     class_=AsyncSession,
+
+    #     autoflush=False,  # Don't auto-flush
+    #     autocommit=False,  # Don't auto-commit
+    # )
+
+    # AsyncSession per request
+    # Database Session Resource - Creates AsyncSession instances with automatic lifecycle management.
+    # The Resource provider automatically closes sessions and returns connections to the pool, preventing connection leaks.
+    # db_session = providers.Resource(
+    #     lambda sf: sf(),
+    #     session_factory
+    # )
+
+    # --- Cache ---
+    redis_client = providers.Singleton(
+        RedisClient,
+        url=providers.Callable(lambda c: c.REDIS_LOCATION, config),
+        redis_name=providers.Callable(lambda c: c.REDIS_NAME, config),
+        redis_password=providers.Callable(lambda c: c.REDIS_PASSWORD, config),
+        redis_host=providers.Callable(lambda c: c.REDIS_HOST, config),
+        redis_port=providers.Callable(lambda c: c.REDIS_PORT, config),
+        redis_db=providers.Callable(lambda c: c.REDIS_DB, config),
+    )
+
+    cache_manager = providers.Singleton(
+        RedisCacheManager,
+        client=redis_client,
+    )
+
+    cache_service = providers.Singleton(
+        CacheService,
+        manager=cache_manager,
+    )
+    
+    # --- LLM Models ---
+    # --- Primary LLM Model (for agent conversations) ---
+    llm_model = providers.Factory(
+        BedrockModel,
+        aws_access_key=providers.Callable(lambda c: c.AWS_ACCESS_KEY, config),
+        aws_secret_key=providers.Callable(lambda c: c.AWS_SECRET_KEY, config),
+    )
+
+    sonic_model = providers.Factory(
+        SonicModel,
+        aws_access_key=providers.Callable(lambda c: c.AWS_ACCESS_KEY, config),
+        aws_secret_key=providers.Callable(lambda c: c.AWS_SECRET_KEY, config),
+    )
+
+    # Services
+    # ── Services ──────────────────────────────────────────────────────────────
+    # All implementation lives here. Tools call services. Agents call services
+    # directly only for post-loop data fetching.
+    transcription_service = providers.Factory(
+        TranscriptionService,
+        sonic_model=sonic_model,
+        cache_service=cache_service,
+    )
+
+    patient_service = providers.Singleton(
+        PatientService,
+        cache_service=cache_service,
+    )
+
+    soap_service = providers.Singleton(
+        SOAPService,
+        llm_model=llm_model,
+        cache_service=cache_service,
+    )
+
+    evaluation_service = providers.Singleton(
+        EvaluationService,
+        llm_model=llm_model,
+        cache_service=cache_service,
+    )
+
+    # ------ PROMPTS ---------
+    scribe_prompt_template = providers.Factory(
+        ScribePrompt,
+    )
+
+    # sepcify evaluatio agent prompt
+
+    # create evalutaion agent tools
+
+    # create scribe agent tool registry
+
+    # create evaluation agent
+
+
+    patient_tools_for_scribe_agent = providers.Factory(
+        PatientTools,
+        patient_service=patient_service,
+        enabled_tools=[
+            "get_patient_history",
+            "insert_ehr_note",
+            "flag_missing_ehr_fields"
+        ]  # Only enable specific tools
+    )
+
+    soap_tools_for_scribe_agent = providers.Factory(
+        SOAPTools,
+        soap_service=soap_service,
+        enabled_tools=[
+            "generate_soap_note",
+            # "save_session_transcript",
+            "get_session_transcript"
+        ]  # Only enable specific tools
+    )
+
+    evaluation_tools_for_scribe_agent = providers.Factory(
+        EvaluationTools,
+        evaluation_service=evaluation_service,
+        enabled_tools=[
+            "evaluate_consultation",
+        ],
+    )
+
+    # Tool Registry for Scribe Agent
+    scribe_agent_tool_registry = providers.Factory(
+        ToolRegistry,
+        tool_classes=providers.List(
+            patient_tools_for_scribe_agent,
+            soap_tools_for_scribe_agent,
+            evaluation_tools_for_scribe_agent,
+        )
+    )
+
+    # Scribe Agent
+    scribe_agent = providers.Factory(
+        ScribeAgent,
+        llm_model=llm_model,
+        tool_registry=scribe_agent_tool_registry,  
+        prompt_template=scribe_prompt_template,
+        transcription_service=transcription_service,
+        soap_service=soap_service,
+        evaluation_service=evaluation_service,
+        cache_service=cache_service,
+    )
+
+    # ── Consumers (Factory — one per WebSocket connection) ────────────────────
+    # websocket and user are injected per-connection at the route level
+
+    # scribe_consumer = providers.Factory(
+    #     ScribeConsumer,
+    #     agent=scribe_agent,
+    #     # websocket and user passed at call time:
+    #     # container.scribe_consumer(websocket=ws, user=current_user)
+    # )
