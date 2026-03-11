@@ -10,6 +10,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 from src.infrastructure.cache.service import CacheService
+from src.infrastructure.language_model_service.bedrock import BedrockModelService
 from utils.logger import get_logger
 
 logger = get_logger()
@@ -53,8 +54,17 @@ class PatientService:
     All data is cache-backed. No DB/SQLAlchemy.
     """
 
-    def __init__(self, cache_service: CacheService):
+    def __init__(
+        self, 
+        cache_service: CacheService,
+        llm_service: BedrockModelService,
+        ehr_fields_extraction_prompt: str,
+        ehr_fields_guided_json: Dict[str, Any],
+    ):
         self.cache = cache_service
+        self.llm_service = llm_service
+        self.extract_ehr_fields_prompt = ehr_fields_extraction_prompt
+        self.extract_ehr_fields_guided_json = ehr_fields_guided_json
 
     def _patient_key(self, patient_id: str) -> str:
         return f"patient:context:{patient_id}"
@@ -153,6 +163,27 @@ class PatientService:
             {"success": True, "missing_fields": [...], "is_complete": bool}
         """
         try:
+            logger.info(f"Flagging missing EHR fields for patient {patient_id}, SOAP note: {soap_note}")
+            # Convert soap_note to a plain text string for LLM extraction
+            # if isinstance(soap_note, dict):
+            #     soap_text = "\n".join(
+            #         f"{k.upper()}: {v}" for k, v in soap_note.items() if v
+            #     )
+            # else:
+            #     soap_text = str(soap_note)
+            soap_text = json.dumps(soap_note, indent=2)
+
+            logger.info(f"SOAP note text for extraction: {soap_text}")
+
+            # Use LLM to extract structured SOAP fields from whatever format we received
+            extracted = await self.llm_service.prompt_llm_for_text(
+                prompt=self.extract_ehr_fields_prompt,
+                text=f"SOAP Text: {soap_text}",
+                response_schema=self.extract_ehr_fields_guided_json,
+                temperature=0.1,  # Deterministic — this is extraction, not generation
+            )
+
+
             required = {
                 "subjective": "Chief complaint / subjective findings",
                 "objective": "Objective findings / vitals",
@@ -161,10 +192,15 @@ class PatientService:
                 "follow_up": "Follow-up instructions",
             }
 
+            # missing = [
+            #     {"field": field, "label": label}
+            #     for field, label in required.items()
+            #     if not str(soap_note.get(field, "")).strip()
+            # ]
             missing = [
                 {"field": field, "label": label}
                 for field, label in required.items()
-                if not str(soap_note.get(field, "")).strip()
+                if not str(extracted.get(field, "")).strip()
             ]
 
             return {

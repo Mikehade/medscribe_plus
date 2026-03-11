@@ -54,6 +54,9 @@ class ScribeAgent(BaseAgent):
         self.evaluation_service = evaluation_service
         self.cache = cache_service
 
+        # Set tool registry on the LLM model
+        self.llm_model.tool_registry = self.tool_registry
+
         # Log tool setup
         if self.tool_registry:
             available_tools = self.tool_registry.get_available_tools()
@@ -101,12 +104,6 @@ class ScribeAgent(BaseAgent):
 
         try:
             # Add patient_id context to tool registry for tool execution
-            # if enable_tools and self.tool_registry:
-            #     # Inject paatient id and transcript context into all tool classes
-            #     for tool_class in self.tool_registry.tool_classes:
-            #         tool_class.kwargs['patient_id'] = patient_id
-            #         tool_class.kwargs['transcript'] = Transcript
-            #         tool_class.kwargs['session_id'] = session_id
 
             # TODO: - Valdate that trsncript is actually between doctor and patient, if otherwise, flag and return here
 
@@ -135,8 +132,7 @@ class ScribeAgent(BaseAgent):
                 system_prompt=system_prompt,
                 stream=False,
                 enable_tools=True,
-                # model_id = "arn:aws:bedrock:us-west-2:961891917456:inference-profile/us.anthropic.claude-sonnet-4-6",
-                model_id="arn:aws:bedrock:us-west-2:779056097161:inference-profile/us.anthropic.claude-sonnet-4-6"
+                # reasoning=True,
             )
 
             generator = await self.ensure_async_generator(prompt_output)
@@ -156,10 +152,14 @@ class ScribeAgent(BaseAgent):
             patient_context = await self.cache.get(f"patient:context:{patient_id}") or {}
 
             # Check for missing fields in the SOAP note
-            missing_result = await self.soap_service.soap_service_flag_missing_fields(
-                session_id=session_id,
-                soap_note=cached_soap,
-            ) if cached_soap else {"missing_fields": []}
+            # Not in soap service yet
+            # missing_result = await self.soap_service.flag_missing_fields(
+            #     session_id=session_id,
+            #     soap_note=cached_soap,
+            # ) if cached_soap else {"missing_fields": []}
+            # missing_fields = missing_result.get("missing_fields", [])
+
+            missing_fields = []
 
             logger.info(f"Consultation complete: session={session_id}")
             return {
@@ -168,7 +168,7 @@ class ScribeAgent(BaseAgent):
                 "soap": cached_soap,
                 "scores": cached_scores,
                 "patient_context": patient_context,
-                "missing_fields": missing_result.get("missing_fields", []),
+                "missing_fields": missing_fields,
                 "transcript": transcript,
             }
 
@@ -249,22 +249,22 @@ class ScribeAgent(BaseAgent):
 
             # transcribe audio
             # this already works but disabled for faster testing, I commented it out
-            transcript = await self.transcription_service.transcribe(audio)
+            # transcript = await self.transcription_service.transcribe(audio)
 
-            # transcript = (
-            #     "Doctor: Good morning Mr. Smith. How have you been since our last visit? "
-            #     "Patient: Not too bad doctor, but my blood pressure has been a bit high lately. "
-            #     "I've also been taking a potassium supplement I bought at the pharmacy. "
-            #     "Doctor: I see. Your BP today is 148 over 90, which is higher than we'd like. "
-            #     "You're currently on lisinopril 10mg. I'm a bit concerned about the potassium "
-            #     "supplement combined with your lisinopril as that combination can cause high "
-            #     "potassium levels in your blood. Please stop that supplement immediately. "
-            #     "Patient: Oh I didn't know that. Should I be worried? "
-            #     "Doctor: We'll monitor your levels. Your HbA1c came back at 7.4 percent which "
-            #     "is slightly above our target. I'm going to increase your lisinopril to 20mg "
-            #     "daily and I want to see you back in two weeks. Keep monitoring your BP at home "
-            #     "and continue your metformin and aspirin as prescribed."
-            # )
+            transcript = (
+                "Doctor: Good morning Mr. Smith. How have you been since our last visit? "
+                "Patient: Not too bad doctor, but my blood pressure has been a bit high lately. "
+                "I've also been taking a potassium supplement I bought at the pharmacy. "
+                "Doctor: I see. Your BP today is 148 over 90, which is higher than we'd like. "
+                "You're currently on lisinopril 10mg. I'm a bit concerned about the potassium "
+                "supplement combined with your lisinopril as that combination can cause high "
+                "potassium levels in your blood. Please stop that supplement immediately. "
+                "Patient: Oh I didn't know that. Should I be worried? "
+                "Doctor: We'll monitor your levels. Your HbA1c came back at 7.4 percent which "
+                "is slightly above our target. I'm going to increase your lisinopril to 20mg "
+                "daily and I want to see you back in two weeks. Keep monitoring your BP at home "
+                "and continue your metformin and aspirin as prescribed."
+            )
 
             logger.info(f"\n Transcript in processing audio: {transcript}  \n")
 
@@ -278,11 +278,11 @@ class ScribeAgent(BaseAgent):
             # }
             logger.info(f"Transcription complete: {len(transcript)} chars")
 
-            # return await self.process_consultation(
-            #     transcript=transcript,
-            #     patient_id=patient_id,
-            #     session_id=session_id,
-            # )
+            return await self.process_consultation(
+                transcript=transcript,
+                patient_id=patient_id,
+                session_id=session_id,
+            )
 
         except Exception as e:
             logger.error(f"Consultation processing failed: {e}", exc_info=True)

@@ -38,7 +38,8 @@ class PatientTools(BaseTool):
             }
         
         try:
-            tool_input_with_context = {**tool_input, **self.kwargs}
+            # tool_input_with_context = {**tool_input, **self.kwargs}
+            tool_input_with_context = {**self.kwargs, **tool_input}
             result = await method(**tool_input_with_context)
             
             # Ensure result is a dictionary
@@ -113,7 +114,7 @@ class PatientTools(BaseTool):
 
     async def _flag_missing_ehr_fields(
         self,
-        soap_note: str,
+        soap_note: Dict[str, Any],
         **kwargs
     ) -> Dict[str, Any]:
         """Identify required EHR fields missing from the SOAP note."""
@@ -124,6 +125,16 @@ class PatientTools(BaseTool):
             #     "missing_fields": missing,
             #     "is_complete": len(missing) == 0,
             # }
+
+             # Handle case where soap_note arrives as a JSON string
+            if isinstance(soap_note, str):
+                import json
+                try:
+                    soap_note = json.loads(soap_note)
+                except json.JSONDecodeError:
+                    logger.warning("soap_note is a string but not valid JSON, wrapping as raw text")
+                    soap_note = {"subjective": soap_note}
+            logger.info(f"[In Tool]: Flagging missing EHR fields for {soap_note}")
             patient_id = kwargs.get("patient_id", "P001")
             return await self.patient_service.flag_missing_ehr_fields(
                 patient_id=patient_id,

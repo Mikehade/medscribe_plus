@@ -1,37 +1,18 @@
-
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
 import "../styles/MedScribe.css";
+import { PatientContextCard, SOAPExtras } from "./MedScribeComponents";
+import type { SOAPNote, EvaluationScores, PatientContextData } from "./MedScribeComponents";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8020/api/v1";
 
 type UploadState = "idle" | "uploading" | "processing" | "done" | "error";
-
-interface SOAPNote {
-  subjective?: string;
-  objective?: string;
-  assessment?: string;
-  plan?: string;
-  icd10_codes?: string[];
-  cpt_codes?: string[];
-}
-
-interface EvaluationScores {
-  completeness?: number;
-  hallucination_risk?: string;
-  drug_safety?: number;
-  guideline_alignment?: number;
-  drug_interactions?: Array<{ drug: string; severity: string; description: string }>;
-  guideline_suggestions?: string[];
-  overall_ready?: boolean;
-  cpt_codes?: string[];
-}
 
 interface AudioUploadResponse {
   session_id: string;
   transcript: string;
   soap: SOAPNote;
   scores: EvaluationScores;
-  patient_context: Record<string, any>;
+  patient_context: PatientContextData;
   missing_fields: Array<{ field: string; message: string }>;
 }
 
@@ -390,6 +371,7 @@ export default function UploadConsultation() {
                         ))}
                       </div>
                     )}
+                    <SOAPExtras soap={result.soap} />
                   </div>
                 )}
 
@@ -410,17 +392,7 @@ export default function UploadConsultation() {
                         ))}
                       </div>
                     )}
-                    {result.patient_context && Object.keys(result.patient_context).length > 0 && (
-                      <div className="ms-patient-ctx">
-                        <div className="ms-soap-label" style={{ marginBottom: 8 }}>Patient Context</div>
-                        {Object.entries(result.patient_context).map(([k, v]) => (
-                          <div key={k} className="ms-ctx-row">
-                            <span className="ms-ctx-key">{k}</span>
-                            <span className="ms-ctx-val">{String(v)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <PatientContextCard ctx={result.patient_context} />
                   </div>
                 )}
 

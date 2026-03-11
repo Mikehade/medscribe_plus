@@ -859,3 +859,163 @@ body {
 ::-webkit-scrollbar-track { background: var(--ms-surface); }
 ::-webkit-scrollbar-thumb { background: var(--ms-border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--ms-border-hover); }
+
+/* ── Patient Context Component ─────────────────────────────────── */
+.ms-ctx-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--ms-border);
+  font-size: 13px;
+  gap: 12px;
+}
+
+.ms-ctx-row:last-child { border-bottom: none; }
+
+.ms-ctx-row-block {
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ms-ctx-key {
+  color: var(--ms-muted);
+  font-family: var(--ms-font-mono);
+  font-size: 11px;
+  text-transform: capitalize;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+
+.ms-ctx-val {
+  color: var(--ms-text);
+  text-align: right;
+  line-height: 1.4;
+}
+
+.ms-ctx-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.ms-ctx-tag {
+  font-size: 11px;
+  font-family: var(--ms-font-mono);
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+.ms-ctx-tag-red {
+  background: rgba(248, 113, 113, 0.1);
+  color: var(--ms-red);
+  border: 1px solid rgba(248, 113, 113, 0.2);
+}
+
+.ms-ctx-tag-amber {
+  background: rgba(251, 191, 36, 0.1);
+  color: var(--ms-amber);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.ms-ctx-section {
+  padding: 10px 0 4px;
+  border-bottom: 1px solid var(--ms-border);
+}
+
+.ms-ctx-section:last-child { border-bottom: none; }
+
+/* Medication list */
+.ms-med-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ms-med-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--ms-surface2);
+  border-radius: var(--ms-radius-sm);
+  border: 1px solid var(--ms-border);
+}
+
+.ms-med-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ms-text);
+  flex: 1;
+}
+
+.ms-med-detail {
+  font-size: 11px;
+  font-family: var(--ms-font-mono);
+  color: var(--ms-accent);
+  background: var(--ms-accent-dim);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.ms-med-freq {
+  font-size: 11px;
+  font-family: var(--ms-font-mono);
+  color: var(--ms-muted);
+}
+
+/* Prior notes */
+.ms-prior-note {
+  padding: 8px 10px;
+  background: var(--ms-surface2);
+  border-radius: var(--ms-radius-sm);
+  border: 1px solid var(--ms-border);
+  margin-bottom: 6px;
+}
+
+.ms-prior-note:last-child { margin-bottom: 0; }
+
+.ms-prior-date {
+  font-size: 10px;
+  font-family: var(--ms-font-mono);
+  color: var(--ms-accent);
+  display: block;
+  margin-bottom: 4px;
+  letter-spacing: 0.05em;
+}
+
+.ms-prior-summary {
+  font-size: 12px;
+  color: var(--ms-text-dim);
+  line-height: 1.5;
+}
+
+/* SOAP extras (follow-up, conditions, meds mentioned) */
+.ms-soap-extras {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.ms-followup-section {
+  border-color: rgba(52, 211, 153, 0.2);
+  background: rgba(52, 211, 153, 0.03);
+}
+
+.ms-followup-section .ms-soap-label {
+  color: var(--ms-green);
+}
+
+.ms-condition-badge {
+  background: rgba(251, 191, 36, 0.08);
+  color: var(--ms-amber);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.ms-med-badge {
+  background: rgba(79, 142, 247, 0.08);
+  color: var(--ms-text-dim);
+  border: 1px solid var(--ms-border);
+}
