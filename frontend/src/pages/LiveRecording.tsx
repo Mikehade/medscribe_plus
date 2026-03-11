@@ -1,36 +1,21 @@
-
 import { useEffect, useRef, useState, useCallback } from "react";
 import "../styles/MedScribe.css";
+import { PatientContextCard, SOAPExtras } from "./MedScribeComponents";
+import type { SOAPNote, EvaluationScores, PatientContextData } from "./MedScribeComponents";
 
 const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8020/api/transcribe/";
-const CHUNK_DURATION_MS = 5000;
+const CHUNK_DURATION_MS = 3000;
 
 type SessionState = "idle" | "connecting" | "recording" | "processing" | "done" | "error";
 
-interface SOAPNote {
-  subjective?: string;
-  objective?: string;
-  assessment?: string;
-  plan?: string;
-  icd10_codes?: string[];
-  cpt_codes?: string[];
-}
 
-interface EvaluationScores {
-  completeness?: number;
-  hallucination_risk?: string;
-  drug_safety?: number;
-  guideline_alignment?: number;
-  drug_interactions?: Array<{ drug: string; severity: string; description: string }>;
-  guideline_suggestions?: string[];
-  overall_ready?: boolean;
-  cpt_codes?: string[];
-}
+
+
 
 interface ConsultationResult {
   soap: SOAPNote;
   scores: EvaluationScores;
-  patient_context: Record<string, any>;
+  patient_context: PatientContextData;
   missing_fields: Array<{ field: string; message: string }>;
   transcript: string;
 }
@@ -528,6 +513,7 @@ export default function LiveRecording() {
                         ))}
                       </div>
                     )}
+                    <SOAPExtras soap={result.soap} />
                   </div>
                 )}
 
@@ -552,6 +538,7 @@ export default function LiveRecording() {
                         ))}
                       </div>
                     )}
+                    <PatientContextCard ctx={result.patient_context} />
                   </div>
                 )}
 

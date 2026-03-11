@@ -1,4 +1,5 @@
 from typing import Any, Optional
+import uuid
 from uuid import UUID
 import os
 import json
@@ -39,24 +40,6 @@ async def upload_audio(
     try:
         # Save to temp file for Nova 2 Sonic processing
         suffix = os.path.splitext(file.filename)[1] or ".wav"
-        # with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-        #     content = await file.read()
-        #     tmp.write(content)
-        #     tmp_path = tmp.name
-
-        # # Transcribe audio → text
-        # transcript = await transcription_svc.transcribe_file(tmp_path)
-        # os.unlink(tmp_path)  # Clean up
-
-        # if not transcript:
-        #     raise HTTPException(status_code=422, detail="Could not transcribe audio")
-
-        # Run full pipeline
-        # result = await agent.process_audio_consultation(
-        #     # transcript=transcript,
-        #     patient_id=patient_id,
-        #     session_id=session_id,
-        # )
 
         session_id = None if session_id.lower() == "string" else session_id
 
@@ -71,7 +54,7 @@ async def upload_audio(
 
         return JSONResponse(content={
             "session_id": result["session_id"],
-            "transcript": transcript,
+            "transcript": result.get("transcript", ""),
             "soap": result["soap"],
             "scores": result["scores"],
             "patient_context": result.get("patient_context", {}),

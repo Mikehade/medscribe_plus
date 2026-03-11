@@ -17,9 +17,7 @@ from src.infrastructure.services.transcription import TranscriptionService
 from src.infrastructure.services.patient import PatientService
 from src.infrastructure.services.soap import SOAPService
 from src.infrastructure.services.evaluation import EvaluationService
-
-# Consumer Imports
-# from src.api.elle.consumer import StudyPermitApplicationConsumer
+from src.infrastructure.language_model_service.bedrock import BedrockModelService
 
 # Agent Imports
 from src.core.agents.scribe import ScribeAgent
@@ -38,6 +36,7 @@ from src.core.tools.soap import SOAPTools
 
 # Prompts imports
 from src.core.prompts.scribe import ScribePrompt
+from src.infrastructure.prompts.patient import extract_ehr_fields_prompt
 
 # Redis imports
 from src.infrastructure.cache.redis.client import RedisClient
@@ -46,6 +45,10 @@ from src.infrastructure.cache.service import CacheService
 
 # Consumers
 from src.api.scribe.consumer import ScribeConsumer
+
+
+# Model Schema Imports
+from src.infrastructure.model_schemas.patient import ExtractEHRFieldsGuidedJson
 
 
 class Container(containers.DeclarativeContainer):
@@ -132,6 +135,15 @@ class Container(containers.DeclarativeContainer):
         aws_secret_key=providers.Callable(lambda c: c.AWS_SECRET_KEY, config),
     )
 
+    # --- Analysis LLM Model (for other stuffs like document extraction/analysis) ---
+    llm_model_analysis = providers.Factory(
+        BedrockModel,
+        aws_access_key=providers.Callable(lambda c: c.AWS_ACCESS_KEY, config),
+        aws_secret_key=providers.Callable(lambda c: c.AWS_SECRET_KEY, config),
+        max_tokens=4096,
+    )
+
+
     sonic_model = providers.Factory(
         SonicModel,
         aws_access_key=providers.Callable(lambda c: c.AWS_ACCESS_KEY, config),
@@ -142,6 +154,11 @@ class Container(containers.DeclarativeContainer):
     # ── Services ──────────────────────────────────────────────────────────────
     # All implementation lives here. Tools call services. Agents call services
     # directly only for post-loop data fetching.
+    bedrock_service = providers.Factory(
+        BedrockModelService,
+        bedrock_model=llm_model_analysis
+    )
+
     transcription_service = providers.Factory(
         TranscriptionService,
         sonic_model=sonic_model,
@@ -151,17 +168,20 @@ class Container(containers.DeclarativeContainer):
     patient_service = providers.Singleton(
         PatientService,
         cache_service=cache_service,
+        llm_service=bedrock_service,
+        ehr_fields_extraction_prompt=extract_ehr_fields_prompt,
+        ehr_fields_guided_json=ExtractEHRFieldsGuidedJson,
     )
 
     soap_service = providers.Singleton(
         SOAPService,
-        llm_model=llm_model,
+        llm_model=llm_model_analysis,
         cache_service=cache_service,
     )
 
     evaluation_service = providers.Singleton(
         EvaluationService,
-        llm_model=llm_model,
+        llm_model=llm_model_analysis,
         cache_service=cache_service,
     )
 

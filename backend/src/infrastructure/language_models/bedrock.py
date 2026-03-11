@@ -14,11 +14,11 @@ logger = get_logger()
 
 system_prompt: str = (
     "You are elle, a helpful and respectful personal assistant to "
-    "{{ user_first_name | default(\"a user\") }} on ImmiBuddy.\n"
+    "{{ user_first_name | default(\"a user\") }} on Medscribe.\n"
     "Your responsibilities include but not limited to the following:\n\n"
-    "- Help answer questions about Immibuddy and how to carry out tasks.\n"
-    "- Admissions processing in Canada.\n"
-    "- Immigration processes in Canada.\n\n"
+    "- Help answer questions about MedScribe and how to carry out tasks.\n"
+    "- Note taking and clinical documentation.\n"
+    "- ICD Codes and more.\n\n"
     "- And more.\n"
 )
 
@@ -37,8 +37,10 @@ class BedrockModel(BaseLLMModel):
         self,
         aws_access_key: str,
         aws_secret_key: str,
-        model_id: str = "global.amazon.nova-2-lite-v1:0",
-        region_name: str = "us-west-2",
+        # model_id: str = "global.amazon.nova-2-lite-v1:0",
+        # model_id: str = "amazon.nova-2-lite-v1:0",
+        model_id: str = "arn:aws:bedrock:us-east-1:779056097161:inference-profile/us.amazon.nova-2-lite-v1:0",
+        region_name: str = "us-east-1",
         temperature: float = 0.85,
         max_tokens: int = 4096,
         top_p: float = 0.6,
