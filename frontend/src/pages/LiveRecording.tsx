@@ -4,7 +4,7 @@ import { PatientContextCard, SOAPExtras } from "./MedScribeComponents";
 import type { SOAPNote, EvaluationScores, PatientContextData } from "./MedScribeComponents";
 
 const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8020/api/transcribe/";
-const CHUNK_DURATION_MS = 3000;
+const CHUNK_DURATION_MS = 5000;
 
 type SessionState = "idle" | "connecting" | "recording" | "processing" | "done" | "error";
 
