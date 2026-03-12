@@ -251,20 +251,50 @@ class ScribeAgent(BaseAgent):
             # this already works but disabled for faster testing, I commented it out
             # transcript = await self.transcription_service.transcribe(audio)
 
-            transcript = (
-                "Doctor: Good morning Mr. Smith. How have you been since our last visit? "
-                "Patient: Not too bad doctor, but my blood pressure has been a bit high lately. "
-                "I've also been taking a potassium supplement I bought at the pharmacy. "
-                "Doctor: I see. Your BP today is 148 over 90, which is higher than we'd like. "
-                "You're currently on lisinopril 10mg. I'm a bit concerned about the potassium "
-                "supplement combined with your lisinopril as that combination can cause high "
-                "potassium levels in your blood. Please stop that supplement immediately. "
-                "Patient: Oh I didn't know that. Should I be worried? "
-                "Doctor: We'll monitor your levels. Your HbA1c came back at 7.4 percent which "
-                "is slightly above our target. I'm going to increase your lisinopril to 20mg "
-                "daily and I want to see you back in two weeks. Keep monitoring your BP at home "
-                "and continue your metformin and aspirin as prescribed."
-            )
+            # transcript = (
+            #     "Doctor: Good morning Mr. Smith. How have you been since our last visit? "
+            #     "Patient: Not too bad doctor, but my blood pressure has been a bit high lately. "
+            #     "I've also been taking a potassium supplement I bought at the pharmacy. "
+            #     "Doctor: I see. Your BP today is 148 over 90, which is higher than we'd like. "
+            #     "You're currently on lisinopril 10mg. I'm a bit concerned about the potassium "
+            #     "supplement combined with your lisinopril as that combination can cause high "
+            #     "potassium levels in your blood. Please stop that supplement immediately. "
+            #     "Patient: Oh I didn't know that. Should I be worried? "
+            #     "Doctor: We'll monitor your levels. Your HbA1c came back at 7.4 percent which "
+            #     "is slightly above our target. I'm going to increase your lisinopril to 20mg "
+            #     "daily and I want to see you back in two weeks. Keep monitoring your BP at home "
+            #     "and continue your metformin and aspirin as prescribed."
+            # )
+
+            transcript = (""" come in and have a seat. 
+                            how are you feeling today? not great. 
+                            i've been feeling really tired lately,
+                            like i don't have enough energy to do anything. 
+                            night's sleep and i keep getting these headaches. 
+                            how long has this been going on? i thought it would pass, 
+                            but it hasn't. okay, and the describe them? where do you feel them? 
+                            and how often do they occur? at the back of my head, sometimes across the forehead.
+                            they come maybe three or four times a week. dull, throbbing kind of pain. any dizziness, 
+                            blurred vision or ringing in your ears? especially when i stand up quickly and i've been really thirsty lately. 
+                            lately, like unusually thirsty and i have to use the that's important. now that you mention it, yes. more but i still
+                            feel hungry and i think i've lost a couple of alright, mr. carter, let me do a quick physical your blood pressure, heart rate 
+                            and a few other things. please of course. your blood pressure is reading at one hundred and twenty over eighty, which is elevated. 
+                            would you like me to contact someone in the medical team? that slightly elevated above the normal range of one hundred and your heart 
+                            rate is eighty two beats per minute. need to check your blood glucose with a quick finger prick test. sure, go ahead. your blood glucose 
+                            is coming in at one hundred eighty six that's elevated, especially for a non-fasting reading. bmi of twenty eight point three. is that... bad?
+                            should i be worried? it's something we need yes, based on what you've described, the fatigue frequent urination, increased hunger, and the numbers 
+                            i'm concerned this could be consistent with early stage type two diabetes. blood pressure also suggests stage one hypertension, which may headaches and dizziness. 
+                            diabetes? my father had it, but i thought i was being careful. factor, and i want to reassure you. we caught this early, and a diagnosis isn't confirmed yet. we need more
+                            tests to be certain. okay, what happens next? here's the plan. fasting blood glucose test and a hemoglobin a one c test. of your average blood sugar over the past two to three months. 
+                            i'm metabolic panel and a lipid profile to check your kidney function and i can do those today. while we wait for results, i want you to start making some reduce your intake of refined
+                            carbohydrates and sugary for at least thirty minutes of moderate exercise five days a week. and monitor your blood pressure at home if possible. if the lab results confirm that you have a cold, 
+                            your doctor may recommend over-the-counter medications to help alleviate symptoms. these may include pain relievers, cough suppressants, decongestants, and antihistamines. elevated blood sugar levels,
+                            we'll likely discuss starting metformin. first-line medication for type two diabetes. lifestyle changes alone sometimes range. yes, the fatigue is very likely a direct consequence of the blood once we 
+                            get that under control, your energy levels should the headaches are likely tied to the blood pressure. both should improve that's a relief to hear. i was starting to think something more serious your concern 
+                            was absolutely appropriate. you were right to come in. we'll schedule a follow-up appointment in two weeks. once we have your lab review everything together and make a formal care plan. doctor, i appreciate you 
+                            explaining everything so clearly. mr. carter, take the lab forms from the front desk on your way don't hesitate to call us if your symptoms worsen before your follow-up. take care! will do. thank you!
+                            
+                            """)
 
             logger.info(f"\n Transcript in processing audio: {transcript}  \n")
 

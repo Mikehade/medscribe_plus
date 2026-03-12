@@ -51,6 +51,11 @@ class Settings(BaseSettings):
     API_V_STR: str = "/api/v1"
     VERSION: str = "1.0.0"
 
+    # ChromaDB
+    CHROMA_COLLECTION: str = Field(default="clinical_docs", validation_alias="CHROMA_COLLECTION")
+    # CHROMA_COLLECTION: str = Field(..., validation_alias="CHROMA_COLLECTION")
+    CHROMA_PERSIST_DIR: str = Field(default="./chroma_db", validation_alias="CHROMA_PERSIST_DIR")
+
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         return (

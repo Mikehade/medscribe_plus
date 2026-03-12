@@ -17,6 +17,7 @@ from src.infrastructure.services.transcription import TranscriptionService
 from src.infrastructure.services.patient import PatientService
 from src.infrastructure.services.soap import SOAPService
 from src.infrastructure.services.evaluation import EvaluationService
+from src.infrastructure.services.rag import RAGService
 from src.infrastructure.language_model_service.bedrock import BedrockModelService
 
 # Agent Imports
@@ -42,6 +43,9 @@ from src.infrastructure.prompts.patient import extract_ehr_fields_prompt
 from src.infrastructure.cache.redis.client import RedisClient
 from src.infrastructure.cache.redis.manager import RedisCacheManager
 from src.infrastructure.cache.service import CacheService
+
+# Vector Store imports
+from src.infrastructure.vector_store.chroma import ChromaVectorStore
 
 # Consumers
 from src.api.scribe.consumer import ScribeConsumer
@@ -125,6 +129,19 @@ class Container(containers.DeclarativeContainer):
     cache_service = providers.Singleton(
         CacheService,
         manager=cache_manager,
+    )
+
+    # --- Vector Store & RAG ---
+    vector_store = providers.Singleton(
+        ChromaVectorStore,
+        collection_name=providers.Callable(lambda c: c.CHROMA_COLLECTION, config),
+        persist_directory=providers.Callable(lambda c: c.CHROMA_PERSIST_DIR, config),
+    )
+
+    rag_service = providers.Singleton(
+        RAGService,
+        vector_store=vector_store,
+        aws_region=providers.Callable(lambda c: c.AWS_REGION_NAME, config),
     )
     
     # --- LLM Models ---
