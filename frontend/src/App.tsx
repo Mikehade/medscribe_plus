@@ -1,7 +1,7 @@
 import Home from "./pages/Home"
 import StoryPredictorPage from "./pages/chat-1"
 import LiveRecording  from "./pages/LiveRecording"	
-import UploadConsultation  from "./pages/UploadCOnsultation"
+import UploadConsultation  from "./pages/UploadConsultation"
 
 
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom"

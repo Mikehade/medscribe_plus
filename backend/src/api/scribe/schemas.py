@@ -37,3 +37,10 @@ class TranscriptChunkRequest(BaseModel):
 class SessionScoresResponse(BaseModel):
     session_id: str
     scores: Dict[str, Any]
+
+class PatientContextResponse(BaseModel):
+    success: bool
+    data: Dict[str, Any]
+
+class PatientContextRequest(BaseModel):
+    patient_id: str

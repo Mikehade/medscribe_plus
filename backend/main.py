@@ -15,7 +15,8 @@ logger = get_logger()
 
 from src.api.base.router import router as base_router
 from src.api.scribe.router import router as scribe_router, ws_router as scribe_ws_router
-# from src.infrastructure.middleware.dependencies import get_current_user
+from src.api.rag.router import router as rag_router
+from src.api.soap.router import router as soap_router
 
 #  Load .env and pick the right Settings class
 load_dotenv(find_dotenv())
@@ -50,6 +51,10 @@ async def lifespan(app: FastAPI):
     container.init_resources()
 
     await container.redis_client().connect()
+    
+    # Initialize ChromaDB Vector Store
+    logger.info("Initializing ChromaDB Vector Store...")
+    await container.vector_store().initialize()
 
     yield
 
@@ -57,6 +62,7 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down application...")
     
     # shutdown
+    await container.vector_store().close()
     await container.redis_client().disconnect()
 
     container.shutdown_resources()
@@ -64,6 +70,7 @@ async def lifespan(app: FastAPI):
 
 import src.api.base.router
 import src.api.scribe.router
+import src.api.rag.router
 container = Container()
 
 container.wire(
@@ -72,6 +79,8 @@ container.wire(
         # "src.api.base.router.router"
         src.api.base.router,
         src.api.scribe.router,
+        src.api.rag.router,
+        src.api.soap.router,
 
     ]
 )
@@ -132,6 +141,17 @@ api_app.include_router(
     # dependencies=[Depends(get_current_user)],
 )
 
+api_app.include_router(
+    rag_router,
+    prefix=f"{settings.API_V_STR}",
+    tags=["RAG"],
+)
+
+api_app.include_router(
+    soap_router,
+    prefix=f"{settings.API_V_STR}",
+    tags=["SOAP"],
+)
 
 api_app.include_router(
     scribe_ws_router,

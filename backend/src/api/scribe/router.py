@@ -11,7 +11,7 @@ from src.config.dependency_injection.container import Container
 # from src.infrastructure.db.models.auth import AuthProfile
 # from src.infrastructure.middleware.dependencies import get_current_user
 from src.core.agents.scribe import ScribeAgent
-from src.api.scribe.schemas import ( 
+from src.api.scribe.schemas import (
     ApproveRequest, ApproveResponse, AudioUploadResponse
 )
 
@@ -93,17 +93,39 @@ async def approve_note(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/patient/{patient_id}")
+# @router.get("/patient/{patient_id}")
+# @inject
+# async def get_patient_context(
+#     patient_id: str, 
+#     agent: ScribeAgent = Depends(Provide[Container.scribe_agent]),
+# ):
+#     """Get mock patient context for EHR panel."""
+#     result = await agent.patient_tools.execute_tool(
+#         "get_patient_history", {"patient_id": patient_id}
+#     )
+#     return JSONResponse(content=result)
+
+# 2. I called the patient service directly to get the patient context
+from src.api.scribe.schemas import PatientContextResponse, PatientContextRequest
+from src.infrastructure.services.patient import PatientService
+
+@router.get("/patient/{patient_id}", response_model=PatientContextResponse)
 @inject
 async def get_patient_context(
-    patient_id: str, 
-    agent: ScribeAgent = Depends(Provide[Container.scribe_agent]),
+    patient_id: str,
+    Patient_history: PatientService = Depends(Provide[Container.patient_service])
 ):
     """Get mock patient context for EHR panel."""
-    result = await agent.patient_tools.execute_tool(
-        "get_patient_history", {"patient_id": patient_id}
-    )
+  
+    result = await Patient_history.get_patient_history(patient_id)
+    if not result["success"]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=result["error"]
+        )
     return JSONResponse(content=result)
+
+    
 
 
 

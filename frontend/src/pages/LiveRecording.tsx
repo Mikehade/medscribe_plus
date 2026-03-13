@@ -36,7 +36,8 @@ function ApproveBar({
     setStatus("loading");
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/Scribe/approve`,
+        // `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/Scribe/approve`,
+        `${import.meta.env.VITE_API_URL || "http://localhost:8020"}/api/v1/Scribe/approve`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

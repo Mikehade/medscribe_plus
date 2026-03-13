@@ -199,3 +199,26 @@ class SOAPService:
         """Clear transcript and SOAP cache for a session."""
         await self.cache.invalidate(self._transcript_key(session_id))
         await self.cache.invalidate(self._soap_key(session_id))
+
+    # 1. i added this method to bui;d the soag gen endpoint
+    async def get_soap_note_from_cache(self, session_id: str) -> Dict[str, Any]:
+        """
+        Retrieve the SOAP note for a session from cache.
+
+        Args:
+            session_id: Session identifier
+
+        Returns:
+            {"success": True, "data": {soap dict}} or {"success": False, "error": "..."}
+        """
+        try:
+            cache_key = self._soap_key(session_id)
+            soap_data = await self.cache.get(cache_key)
+            if not soap_data:
+                return {"success": False, "error": "SOAP note not found in cache"}
+            
+            return {"success": True, "data": soap_data}
+            
+        except Exception as e:
+            logger.error(f"get_soap_note_frm_cache failed: {e}", exc_info=True)
+            return {"success": False, "error": str(e)}
