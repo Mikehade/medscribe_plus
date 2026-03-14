@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     AWS_SECRET_KEY: Optional[str] = Field(..., validation_alias="AWS_SECRET_KEY")
     AWS_REGION_NAME: Optional[str] = Field(..., validation_alias="AWS_REGION_NAME")
     NOVA_ACT_API_KEY: Optional[str] = Field(..., validation_alias="NOVA_ACT_API_KEY")
+    AWS_INFERENCE_PROFILE: Optional[str] = Field(default="779056097161", validation_alias="AWS_INFERENCE_PROFILE")
     # AWS_BUCKET_NAME: Optional[str] = Field(..., validation_alias="AWS_BUCKET_NAME")
     SERP_API_KEY: Optional[str] = Field(..., validation_alias="SERP_API_KEY")
 

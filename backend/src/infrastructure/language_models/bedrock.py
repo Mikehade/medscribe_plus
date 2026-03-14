@@ -28,8 +28,7 @@ class BedrockModel(BaseLLMModel):
     AWS Bedrock model implementation with tool calling support.
     
     Supports models like:
-    - meta.llama3-1-405b-instruct-v1:0
-    - anthropic.claude-3-sonnet-20240229-v1:0
+    - nova lite
     - etc.
     """
     

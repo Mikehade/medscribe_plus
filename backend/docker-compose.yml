@@ -1,0 +1,95 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MedScribe+ — full stack
+#
+# Services:
+#   redis      — cache and real-time transcript store
+#   api        — FastAPI application
+#
+# Env resolution order (highest to lowest priority):
+#   1. Shell environment variables already exported on the host
+#   2. .docker.env   (Docker-specific overrides, gitignored)
+#   3. .env          (shared dev defaults, gitignored)
+#
+# Usage:
+#   docker compose up              # start both services
+#   docker compose up -d           # detached
+#   docker compose down            # stop and remove containers
+#   docker compose down -v         # also remove named volumes
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ─── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7.2-alpine
+    container_name: medscribe_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-changeme}
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - medscribe_net
+
+  # ─── API ───────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: medscribe_api
+    restart: unless-stopped
+    # Env resolution: host shell > .docker.env > .env
+    env_file:
+      - path: .docker.env
+        required: false
+      - path: .env
+        required: false
+    environment:
+      # Override REDIS_HOST so the API always finds the redis container
+      # by its service name, regardless of what is in the .env file.
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_URL: "redis://:${REDIS_PASSWORD:-changeme}@redis:6379/${REDIS_DB:-0}"
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      # Persist ChromaDB and uploads across restarts
+      - chroma_data:/app/chroma_db
+      - uploads_data:/app/temp_uploads
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+    networks:
+      - medscribe_net
+
+volumes:
+  redis_data:
+    driver: local
+  chroma_data:
+    driver: local
+  uploads_data:
+    driver: local
+
+networks:
+  medscribe_net:
+    driver: bridge
