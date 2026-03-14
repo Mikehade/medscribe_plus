@@ -153,10 +153,8 @@ class BedrockModelService:
             response = await self.async_call_prompt(
                 # text=text,
                 grammar=response_schema,
-                is_function_call=False,
+                is_function_call=True,
                 message_history=messages,
-                # model_id="us.meta.llama3-2-90b-instruct-v1:0",
-                model_id="arn:aws:bedrock:us-west-2:961891917456:inference-profile/us.meta.llama4-scout-17b-instruct-v1:0",
                 temperature=temperature,
             )
             # logger.info(f"\n Response in prompt for image: {response} \n")
@@ -212,9 +210,7 @@ class BedrockModelService:
                     # prompt=prompt,
                     text=text,
                     grammar=response_schema,
-                    is_function_call=False,
-                    model_id="arn:aws:bedrock:us-west-2:961891917456:inference-profile/us.anthropic.claude-3-7-sonnet-20250219-v1:0" if not model_id else model_id,
-                    # model_id="arn:aws:bedrock:us-west-2:961891917456:inference-profile/us.anthropic.claude-sonnet-4-20250514-v1:0" if not model_id else model_id,
+                    is_function_call=True,
                     temperature=temperature,
                     reasoning=reasoning,
                 )
@@ -264,10 +260,8 @@ class BedrockModelService:
             response = await self.async_call_prompt_claude(
                 # text=text,
                 grammar=response_schema,
-                is_function_call=False,
+                is_function_call=True,
                 message_history=messages,
-                model_id="arn:aws:bedrock:us-west-2:961891917456:inference-profile/us.anthropic.claude-sonnet-4-20250514-v1:0",
-                # model_id="arn:aws:bedrock:us-west-2:961891917456:inference-profile/us.anthropic.claude-sonnet-4-5-20250929-v1:0",
                 temperature=temperature,
                 reasoning=True
             )

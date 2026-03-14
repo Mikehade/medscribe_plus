@@ -144,6 +144,10 @@ class Container(containers.DeclarativeContainer):
         BedrockModel,
         aws_access_key=providers.Callable(lambda c: c.AWS_ACCESS_KEY, config),
         aws_secret_key=providers.Callable(lambda c: c.AWS_SECRET_KEY, config),
+        model_id=providers.Callable(
+            lambda c: f"arn:aws:bedrock:us-east-1:{c.AWS_INFERENCE_PROFILE}:inference-profile/us.amazon.nova-2-lite-v1:0",
+            config,
+        ),
     )
 
     # --- Analysis LLM Model (for other stuffs like document extraction/analysis) ---
