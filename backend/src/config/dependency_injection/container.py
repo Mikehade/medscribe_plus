@@ -11,6 +11,8 @@ from src.config.base import get_settings
 # Repository imports
 # from src.infrastructure.repository.auth import AuthRepository
 
+# Embedding model
+from src.infrastructure.embedding_models.bedrock import BedrockEmbeddingModel
 
 # Service Imports
 from src.infrastructure.services.transcription import TranscriptionService
@@ -20,8 +22,10 @@ from src.infrastructure.services.evaluation import EvaluationService
 from src.infrastructure.services.rag import RAGService
 from src.infrastructure.language_model_service.bedrock import BedrockModelService
 
+
 # Agent Imports
 from src.core.agents.scribe import ScribeAgent
+from src.core.agents.evaluation import EvaluationAgent
 
 # Language Model Imports
 from src.infrastructure.language_models.bedrock import BedrockModel
@@ -34,10 +38,13 @@ from src.core.tools.base import ToolRegistry
 from src.core.tools.evaluation import EvaluationTools
 from src.core.tools.patient import PatientTools
 from src.core.tools.soap import SOAPTools
+from src.core.tools.scribe_evaluation import ScribeEvaluationTools
+from src.core.tools.retriever import RetrieverTools
 
 # Prompts imports
 from src.core.prompts.scribe import ScribePrompt
 from src.infrastructure.prompts.patient import extract_ehr_fields_prompt
+from src.core.prompts.evaluation import EvaluationPrompt
 
 # Redis imports
 from src.infrastructure.cache.redis.client import RedisClient
@@ -130,19 +137,6 @@ class Container(containers.DeclarativeContainer):
         CacheService,
         manager=cache_manager,
     )
-
-    # --- Vector Store & RAG ---
-    vector_store = providers.Singleton(
-        ChromaVectorStore,
-        collection_name=providers.Callable(lambda c: c.CHROMA_COLLECTION, config),
-        persist_directory=providers.Callable(lambda c: c.CHROMA_PERSIST_DIR, config),
-    )
-
-    rag_service = providers.Singleton(
-        RAGService,
-        vector_store=vector_store,
-        aws_region=providers.Callable(lambda c: c.AWS_REGION_NAME, config),
-    )
     
     # --- LLM Models ---
     # --- Primary LLM Model (for agent conversations) ---
@@ -167,6 +161,22 @@ class Container(containers.DeclarativeContainer):
         aws_secret_key=providers.Callable(lambda c: c.AWS_SECRET_KEY, config),
     )
 
+    # ── Embedding Model ────────────────────────────────────────────────────
+    # Singleton — one Bedrock client shared across all RAG calls.
+    embedding_model = providers.Singleton(
+        BedrockEmbeddingModel,
+        aws_access_key=providers.Callable(lambda c: c.AWS_ACCESS_KEY, config),
+        aws_secret_key=providers.Callable(lambda c: c.AWS_SECRET_KEY, config),
+        # region_name=providers.Callable(lambda c: c.AWS_REGION_NAME, config),
+    )
+
+    # ── Vector Store ───────────────────────────────────────────────────────
+    vector_store = providers.Singleton(
+        ChromaVectorStore,
+        collection_name=providers.Callable(lambda c: c.CHROMA_COLLECTION, config),
+        persist_directory=providers.Callable(lambda c: c.CHROMA_PERSIST_DIR, config),
+    )
+
     # Services
     # ── Services ──────────────────────────────────────────────────────────────
     # All implementation lives here. Tools call services. Agents call services
@@ -174,6 +184,15 @@ class Container(containers.DeclarativeContainer):
     bedrock_service = providers.Factory(
         BedrockModelService,
         bedrock_model=llm_model_analysis
+    )
+
+    # ── RAG Service ────────────────────────────────────────────────────────
+    # Depends on the abstract embedding model and vector store — not on
+    # their concrete implementations.
+    rag_service = providers.Singleton(
+        RAGService,
+        embedding_model=embedding_model,
+        vector_store=vector_store,
     )
 
     transcription_service = providers.Factory(
@@ -207,13 +226,34 @@ class Container(containers.DeclarativeContainer):
         ScribePrompt,
     )
 
-    # sepcify evaluatio agent prompt
+    evaluation_prompt_template = providers.Factory(
+        ScribePrompt,
+    )
 
-    # create evalutaion agent tools
-
-    # create scribe agent tool registry
-
-    # create evaluation agent
+    evaluation_tools_for_eval_agent = providers.Factory(
+        EvaluationTools,
+        evaluation_service=evaluation_service,
+        cache_service=cache_service,
+        enabled_tools=[
+            "check_hallucinations", 
+            "check_drug_interactions", 
+            "check_guideline_alignment", 
+            "aggregate_scores"
+            ],
+    )
+    evaluation_tool_registry = providers.Factory(
+        ToolRegistry,
+        tool_classes=providers.List(
+            evaluation_tools_for_eval_agent,
+            ),
+    )
+    evaluation_agent = providers.Factory(
+        EvaluationAgent,
+        llm_model=llm_model,
+        tool_registry=evaluation_tool_registry,
+        prompt_template=evaluation_prompt_template,
+        cache_service=cache_service,
+    )
 
 
     patient_tools_for_scribe_agent = providers.Factory(
@@ -237,10 +277,20 @@ class Container(containers.DeclarativeContainer):
     )
 
     evaluation_tools_for_scribe_agent = providers.Factory(
-        EvaluationTools,
-        evaluation_service=evaluation_service,
+        ScribeEvaluationTools,
+        evaluation_agent=evaluation_agent,
+        cache_service=cache_service,
         enabled_tools=[
             "evaluate_consultation",
+        ],
+    )
+
+    retriver_tools_for_scribe_agent = providers.Factory(
+        RetrieverTools,
+        rag_service=rag_service,
+        enabled_tools=[
+            "retrieve_clinical_documents_by_document_type",
+            "retrieve_clinical_documents_context",
         ],
     )
 
@@ -251,6 +301,7 @@ class Container(containers.DeclarativeContainer):
             patient_tools_for_scribe_agent,
             soap_tools_for_scribe_agent,
             evaluation_tools_for_scribe_agent,
+            retriver_tools_for_scribe_agent,
         )
     )
 

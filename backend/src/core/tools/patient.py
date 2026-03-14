@@ -74,11 +74,7 @@ class PatientTools(BaseTool):
         """Retrieve patient medical history, medications, allergies and prior notes from EHR."""
         try:
             
-            # return {
-            #     "success": True,
-            #     "data": patient,
-            #     "message": f"Patient context retrieved for {patient_id}",
-            # }
+            
             patient_id = kwargs.get("patient_id", "P001")
             return await self.patient_service.get_patient_history(patient_id=patient_id)
         
@@ -94,13 +90,7 @@ class PatientTools(BaseTool):
         """Insert finalized SOAP note into EHR via Nova Act browser automation."""
         try:
             
-            # Mock success for demo
-            # return {
-            #     "success": True,
-            #     "message": "Note inserted into EHR successfully",
-            #     "ehr_record_id": f"NOTE-{session_id or 'DEMO'}-001",
-            #     "timestamp": "2025-03-09T10:30:00Z",
-            # }
+
             patient_id = kwargs.get("patient_id", "P001")
             session_id = kwargs.get("session_id")
             return await self.patient_service.insert_ehr_note(
@@ -119,12 +109,6 @@ class PatientTools(BaseTool):
     ) -> Dict[str, Any]:
         """Identify required EHR fields missing from the SOAP note."""
         try:
-
-            # return {
-            #     "success": True,
-            #     "missing_fields": missing,
-            #     "is_complete": len(missing) == 0,
-            # }
 
              # Handle case where soap_note arrives as a JSON string
             if isinstance(soap_note, str):

@@ -85,23 +85,6 @@ class SOAPTools(BaseTool):
             logger.error(f"SOAP generation failed: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
-    # async def _save_session_transcript(
-    #     self,
-    #     **kwargs
-    # ) -> Dict[str, Any]:
-    #     """Append a transcript chunk to the session store."""
-    #     try:
-    #         # In production: write to Redis/DynamoDB keyed by session_id
-    #         # For hackathon: in-memory via cache service
-    #         cache = kwargs.get("cache_service")
-    #         if cache:
-    #             existing = await cache.get(f"transcript:{session_id}") or ""
-    #             updated = existing + " " + transcript_chunk
-    #             await cache.set(f"transcript:{session_id}", updated, ttl=3600)
-    #         return {"success": True, "message": "Transcript chunk saved"}
-    #     except Exception as e:
-    #         return {"success": False, "error": str(e)}
-
     async def _get_session_transcript(
         self,
         **kwargs
