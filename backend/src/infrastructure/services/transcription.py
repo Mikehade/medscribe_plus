@@ -16,6 +16,12 @@ from utils.logger import get_logger
 
 logger = get_logger()
 
+# Chunk size: 30 seconds of PCM16 audio at 16kHz mono
+# PCM16 = 2 bytes/sample, 16000 samples/sec → 32000 bytes/sec
+CHUNK_DURATION_SECONDS = 30
+BYTES_PER_SECOND = 32_000  # 16kHz * 2 bytes (PCM16, mono)
+CHUNK_SIZE_BYTES = CHUNK_DURATION_SECONDS * BYTES_PER_SECOND  # 960_000 bytes
+
 
 TRANSCRIPT_TTL = 7200  # 2 hours
 TRANSCRIPT_KEY_PREFIX = "transcript:realtime"
@@ -61,17 +67,58 @@ class TranscriptionService:
     def __init__(
         self, 
         sonic_model,
-        cache_service: Optional[CacheService] = None
+        cache_service: Optional[CacheService] = None,
+        max_concurrent_chunks: int = 5,
+        chunk_size_bytes: int = CHUNK_SIZE_BYTES,
     ):
         """
         Args:
-            sonic_model: SonicModel instance (injected via DI container)
+            sonic_model:             SonicModel instance (injected via DI container)
+            cache_service:           Optional cache layer
+            max_concurrent_chunks:   Max parallel Sonic API calls (tune to your rate limit)
+            chunk_size_bytes:        Size of each audio chunk in bytes
         """
         self.sonic_model = sonic_model
         self.cache = cache_service
+        self.chunk_size_bytes = chunk_size_bytes
+        self._semaphore = asyncio.Semaphore(max_concurrent_chunks)
 
     def _realtime_key(self, patient_id: str) -> str:
         return f"{TRANSCRIPT_KEY_PREFIX}:{patient_id}"
+
+    def _split_audio(self, audio_bytes: bytes) -> list[bytes]:
+        """Split raw audio bytes into fixed-size chunks."""
+        return [
+            audio_bytes[i : i + self.chunk_size_bytes]
+            for i in range(0, len(audio_bytes), self.chunk_size_bytes)
+        ]
+
+    async def _transcribe_chunk(
+        self,
+        chunk: bytes,
+        index: int,
+        system_prompt: str,
+    ) -> tuple[int, str]:
+        """
+        Transcribe a single chunk under the concurrency semaphore.
+
+        Returns:
+            (index, transcript) so callers can reorder results.
+        """
+        async with self._semaphore:
+            logger.debug(f"Transcribing chunk {index}: {len(chunk)} bytes")
+            result = await self.sonic_model.transcribe_bytes(
+                audio_bytes=chunk,
+                system_prompt=system_prompt,
+            )
+
+        if not result.get("success"):
+            logger.error(f"Chunk {index} failed: {result.get('error')}")
+            return index, ""
+
+        transcript = result.get("transcript", "")
+        logger.debug(f"Chunk {index} done: {len(transcript)} chars")
+        return index, transcript
 
     # ── File upload path ──────────────────────────────────────────────────────
     async def transcribe(
@@ -91,17 +138,48 @@ class TranscriptionService:
         """
         logger.info(f"TranscriptionService.transcribe: {len(audio_bytes)} bytes")
 
-        result = await self.sonic_model.transcribe_bytes(
-            audio_bytes=audio_bytes,
-            system_prompt=system_prompt or MEDICAL_SYSTEM_PROMPT,
-        )
+        # result = await self.sonic_model.transcribe_bytes(
+        #     audio_bytes=audio_bytes,
+        #     system_prompt=system_prompt or MEDICAL_SYSTEM_PROMPT,
+        # )
 
-        if not result.get("success"):
-            logger.error(f"Transcription failed: {result.get('error')}")
-            return ""
+        # if not result.get("success"):
+        #     logger.error(f"Transcription failed: {result.get('error')}")
+        #     return ""
 
-        transcript = result.get("transcript", "")
-        logger.info(f"Transcription complete: {len(transcript)} chars")
+        # transcript = result.get("transcript", "")
+        # logger.info(f"Transcription complete: {len(transcript)} chars")
+        # return transcript
+        prompt = system_prompt or MEDICAL_SYSTEM_PROMPT
+
+        chunks = self._split_audio(audio_bytes)
+        logger.info(f"Split into {len(chunks)} chunk(s) of ~{self.chunk_size_bytes} bytes")
+
+        if len(chunks) == 1:
+            # Fast path: no chunking overhead for small files
+            _, transcript = await self._transcribe_chunk(chunks[0], 0, prompt)
+            return transcript
+
+        # Dispatch all chunks concurrently (semaphore limits in-flight calls)
+        tasks = [
+            self._transcribe_chunk(chunk, i, prompt)
+            for i, chunk in enumerate(chunks)
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Reassemble in order, skipping any failed chunks
+        ordered: list[str] = []
+        for result in sorted(
+            (r for r in results if not isinstance(r, Exception)),
+            key=lambda x: x[0],
+        ):
+            ordered.append(result[1])
+
+        if any(isinstance(r, Exception) for r in results):
+            logger.warning("Some chunks raised exceptions and were dropped")
+
+        transcript = " ".join(filter(None, ordered))
+        logger.info(f"Transcription complete: {len(transcript)} chars across {len(chunks)} chunks")
         return transcript
 
     # ── Real-time streaming path ──────────────────────────────────────────────
