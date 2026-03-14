@@ -1,0 +1,91 @@
+services:
+
+  # ─── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7.2-alpine
+    container_name: medscribe_redis
+    restart: unless-stopped
+    network_mode: host
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-changeme}
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --port ${REDIS_PORT:-6379}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "${REDIS_PORT:-6379}", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Backend API ──────────────────────────────────────────────────────────────
+  # Started by default (no profile required).
+  # Can also be started standalone from backend/ with its own docker-compose.yml.
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: medscribe_api
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - path: ./backend/.docker.env
+        required: false
+      - path: ./backend/.env
+        required: false
+      - path: .env
+        required: false
+    environment:
+      REDIS_HOST: "127.0.0.1"
+      REDIS_PORT: "${REDIS_PORT:-6379}"
+      REDIS_URL: "redis://:${REDIS_PASSWORD:-changeme}@127.0.0.1:${REDIS_PORT:-6379}/${REDIS_DB:-0}"
+    volumes:
+      - chroma_data:/app/chroma_db
+      - uploads_data:/app/temp_uploads
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${API_PORT:-8000}/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+
+  # ─── Frontend ─────────────────────────────────────────────────────────────────
+  # Only started when the "full" profile is requested:
+  #   docker compose --profile full up
+  #
+  # nginx proxies /api/* → api:8000 and serves the SPA on port 3000.
+  # With network_mode: host it binds directly to the VM so Codespaces can see it.
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: medscribe_frontend
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/nginx-health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    profiles:
+      - full
+
+volumes:
+  redis_data:
+    driver: local
+  chroma_data:
+    driver: local
+  uploads_data:
+    driver: local
