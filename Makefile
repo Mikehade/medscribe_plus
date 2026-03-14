@@ -1,24 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # MedScribe+ — Root Makefile
-#
-# Manages the full monorepo (backend + frontend) from the project root.
-# Also delegates to backend/Makefile for backend-only operations.
-#
-# Layout:
-#   medscribe_plus/
-#   ├── docker-compose.yml   ← full stack (this Makefile uses this)
-#   ├── Makefile             ← this file
-#   ├── backend/
-#   │   ├── Makefile         ← backend-only operations
-#   │   └── docker-compose.yml
-#   └── frontend/
-#
-# Quick start:
-#   make start-backend       start Redis + API only
-#   make start               build and start the full stack (API + Frontend)
-#   make stop                stop everything
-#   make test                run backend unit tests
-#   make help                print all targets
 # ─────────────────────────────────────────────────────────────────────────────
 
 SHELL         := /bin/bash
@@ -33,12 +14,45 @@ RESET  := \033[0m
 API_PORT      ?= 8000
 FRONTEND_PORT ?= 3000
 
+# ── Env file resolution ───────────────────────────────────────────────────────
+ENV_FILE := $(shell \
+  if [ -f backend/.env ]; then echo backend/.env; \
+  elif [ -f backend/.docker.env ]; then echo backend/.docker.env; \
+  elif [ -f .env ]; then echo .env; \
+  fi)
+
+load_env = set -a && source $(ENV_FILE) && set +a
+
 define check_env
-	@if [ ! -f backend/.env ] && [ ! -f backend/.docker.env ] && [ ! -f .env ]; then \
+	@if [ -z "$(ENV_FILE)" ]; then \
 		printf "$(RED)$(BOLD)ERROR:$(RESET) No .env file found.\n"; \
 		printf "  Run: $(BOLD)cp backend/env.example backend/.env$(RESET) and fill in your values.\n"; \
 		exit 1; \
 	fi
+	@printf "$(YELLOW)  Loading env from: $(ENV_FILE)$(RESET)\n"
+endef
+
+# ── Frontend env setup ────────────────────────────────────────────────────────
+# Writes frontend/.env.production before every Docker build so Vite bakes
+# relative URLs into the bundle instead of hardcoded localhost:8000.
+# The WebSocket URL is set to a placeholder — LiveRecording.tsx builds the
+# real WS URL dynamically from window.location.host at runtime.
+#
+# Also patches LiveRecording.tsx to use dynamic WS URL if not already patched.
+
+define setup_frontend_env
+	@printf "$(YELLOW)  Writing frontend/.env.production...$(RESET)\n"
+	@printf "VITE_API_URL=/api/v1\nVITE_WS_URL=__DYNAMIC__\n" > frontend/.env.production
+	@if grep -q "localhost:8000" frontend/src/pages/LiveRecording.tsx 2>/dev/null; then \
+		printf "$(YELLOW)  Patching LiveRecording.tsx WS URL to use window.location.host...$(RESET)\n"; \
+		sed -i 's|import.meta.env.VITE_WS_URL || "ws://localhost:8000/api/transcribe/"|`$${window.location.protocol === '"'"'https:'"'"' ? '"'"'wss:'"'"' : '"'"'ws:'"'"'}://$${window.location.host}/api/transcribe/`|g' \
+			frontend/src/pages/LiveRecording.tsx; \
+	fi
+	@if grep -q "localhost:8020" frontend/src/pages/LiveRecording.tsx 2>/dev/null; then \
+		printf "$(YELLOW)  Patching LiveRecording.tsx approve URL...$(RESET)\n"; \
+		sed -i 's|http://localhost:8020|""|g' frontend/src/pages/LiveRecording.tsx; \
+	fi
+	@printf "$(GREEN)  Frontend env ready.$(RESET)\n"
 endef
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -84,8 +98,9 @@ help:
 .PHONY: start
 start:
 	$(call check_env)
+	$(call setup_frontend_env)
 	@printf "$(BOLD)Building and starting full stack (Redis + API + Frontend)...$(RESET)\n"
-	docker compose --profile full up --build -d
+	@$(load_env) && docker compose --profile full up --build -d
 	@printf "$(GREEN)$(BOLD)Full stack is up.$(RESET)\n"
 	@printf "  Frontend: http://localhost:$(FRONTEND_PORT)\n"
 	@printf "  API:      http://localhost:$(API_PORT)\n"
@@ -94,7 +109,7 @@ start:
 .PHONY: stop
 stop:
 	@printf "$(BOLD)Stopping full stack...$(RESET)\n"
-	docker compose --profile full down
+	@$(load_env) && docker compose --profile full down
 
 .PHONY: restart
 restart: stop start
@@ -102,16 +117,17 @@ restart: stop start
 .PHONY: build
 build:
 	$(call check_env)
+	$(call setup_frontend_env)
 	@printf "$(BOLD)Building all Docker images...$(RESET)\n"
-	docker compose --profile full build --no-cache
+	@$(load_env) && docker compose --profile full build --no-cache
 
 .PHONY: logs
 logs:
-	docker compose --profile full logs -f
+	@$(load_env) && docker compose --profile full logs -f
 
 .PHONY: ps
 ps:
-	docker compose --profile full ps
+	@$(load_env) && docker compose --profile full ps
 
 
 # ── Backend only ──────────────────────────────────────────────────────────────
@@ -120,27 +136,27 @@ ps:
 start-backend:
 	$(call check_env)
 	@printf "$(BOLD)Starting Redis + API...$(RESET)\n"
-	docker compose up --build -d
+	@$(load_env) && docker compose up --build -d
 	@printf "$(GREEN)$(BOLD)Backend is up.$(RESET)\n"
 	@printf "  API:      http://localhost:$(API_PORT)\n"
 	@printf "  API Docs: http://localhost:$(API_PORT)/docs\n"
 
 .PHONY: stop-backend
 stop-backend:
-	docker compose down
+	@$(load_env) && docker compose down
 
 .PHONY: build-backend
 build-backend:
 	$(call check_env)
-	docker compose build --no-cache api
+	@$(load_env) && docker compose build --no-cache api
 
 .PHONY: logs-api
 logs-api:
-	docker compose logs -f api
+	@$(load_env) && docker compose logs -f api
 
 .PHONY: logs-redis
 logs-redis:
-	docker compose logs -f redis
+	@$(load_env) && docker compose logs -f redis
 
 .PHONY: shell-api
 shell-api:
@@ -151,11 +167,13 @@ shell-api:
 
 .PHONY: build-frontend
 build-frontend:
-	docker compose --profile full build --no-cache frontend
+	$(call check_env)
+	$(call setup_frontend_env)
+	@$(load_env) && docker compose --profile full build --no-cache frontend
 
 .PHONY: logs-frontend
 logs-frontend:
-	docker compose --profile full logs -f frontend
+	@$(load_env) && docker compose --profile full logs -f frontend
 
 
 # ── Local development ─────────────────────────────────────────────────────────
@@ -204,7 +222,7 @@ ingest:
 clean:
 	$(MAKE) -C backend clean
 	@printf "$(BOLD)Cleaning frontend build artifacts...$(RESET)\n"
-	rm -rf frontend/dist frontend/.vite
+	rm -rf frontend/dist frontend/.vite frontend/.env.production
 	@printf "$(GREEN)Clean.$(RESET)\n"
 
 .PHONY: clean-docker
