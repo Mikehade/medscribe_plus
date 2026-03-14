@@ -22,29 +22,33 @@ version: "3.9"
 services:
 
   # ─── Redis ─────────────────────────────────────────────────────────────────
+  # network_mode: host means Redis binds directly to the Codespaces VM
+  # network stack — no port forwarding layer, no HostIp ambiguity.
   redis:
     image: redis:7.2-alpine
     container_name: medscribe_redis
     restart: unless-stopped
+    network_mode: host
     command: >
       redis-server
       --requirepass ${REDIS_PASSWORD:-changeme}
       --appendonly yes
       --maxmemory 256mb
       --maxmemory-policy allkeys-lru
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
+      --port ${REDIS_PORT:-6379}
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
+      # With host networking, redis-cli reaches localhost directly
+      test: ["CMD", "redis-cli", "-p", "${REDIS_PORT:-6379}", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - medscribe_net
 
   # ─── API ───────────────────────────────────────────────────────────────────
+  # network_mode: host — the uvicorn process binds directly to port 8000
+  # on the VM, which Codespaces port forwarding can see immediately.
+  # NOTE: ports: must be omitted with network_mode: host.
   api:
     build:
       context: .
@@ -52,35 +56,30 @@ services:
       target: runtime
     container_name: medscribe_api
     restart: unless-stopped
-    # Env resolution: host shell > .docker.env > .env
+    network_mode: host
     env_file:
       - path: .docker.env
         required: false
       - path: .env
         required: false
     environment:
-      # Override REDIS_HOST so the API always finds the redis container
-      # by its service name, regardless of what is in the .env file.
-      REDIS_HOST: redis
-      REDIS_PORT: "6379"
-      REDIS_URL: "redis://:${REDIS_PASSWORD:-changeme}@redis:6379/${REDIS_DB:-0}"
-    ports:
-      - "${API_PORT:-8000}:8000"
+      # With host networking both containers share the VM network,
+      # so redis is reachable at localhost, not by service name.
+      REDIS_HOST: "127.0.0.1"
+      REDIS_PORT: "${REDIS_PORT:-6379}"
+      REDIS_URL: "redis://:${REDIS_PASSWORD:-changeme}@127.0.0.1:${REDIS_PORT:-6379}/${REDIS_DB:-0}"
     volumes:
-      # Persist ChromaDB and uploads across restarts
       - chroma_data:/app/chroma_db
       - uploads_data:/app/temp_uploads
     depends_on:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${API_PORT:-8000}/health"]
       interval: 30s
       timeout: 10s
       start_period: 20s
       retries: 3
-    networks:
-      - medscribe_net
 
 volumes:
   redis_data:
@@ -89,7 +88,3 @@ volumes:
     driver: local
   uploads_data:
     driver: local
-
-networks:
-  medscribe_net:
-    driver: bridge

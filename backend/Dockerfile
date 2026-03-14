@@ -3,7 +3,7 @@
 # Install all Python dependencies into a virtual environment so the final
 # image only copies what is needed (no build tools, no pip cache).
 # ─────────────────────────────────────────────────────────────────────────────
-FROM python:3.11-slim AS builder
+FROM python:3.12-slim AS builder
 
 # System packages needed to compile native extensions
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -29,7 +29,7 @@ RUN python -m venv /venv && \
 # Stage 2 — Runtime
 # Minimal image — only copies the venv and application code.
 # ─────────────────────────────────────────────────────────────────────────────
-FROM python:3.11-slim AS runtime
+FROM python:3.12-slim AS runtime
 
 # Runtime system packages only (no build tools)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -69,4 +69,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["python", "main.py"]

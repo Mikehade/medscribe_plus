@@ -15,7 +15,6 @@ fitz==0.0.1.dev2
 pypdf==6.8.0
 json-repair==0.58.5
 docx2pdf==0.1.8
-dotenv
 aws_sdk_bedrock_runtime==0.4.0
 websockets==16.0
 pydub==0.25.1
@@ -25,3 +24,4 @@ nltk==3.9.3
 chromadb==1.5.5
 pytest==9.0.2
 pytest-mock==3.15.1
+python-dotenv==1.1.1
