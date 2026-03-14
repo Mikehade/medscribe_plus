@@ -92,7 +92,7 @@ class RedisClient:
         except Exception as fallback_error:
             raise RuntimeError(
                 f"Both Redis connection attempts failed.\n"
-                f"  Primary error:  {primary_error}\n"
+                # f"  Primary error:  {primary_error}\n"
                 f"  Fallback error: {fallback_error}"
             ) from fallback_error
 
