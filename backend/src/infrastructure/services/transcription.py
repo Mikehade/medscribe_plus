@@ -224,12 +224,14 @@ class TranscriptionService:
                 logger.error(
                     f"Sonic chunk transcription failed for patient {patient_id}: {error_msg}"
                 )
-                await send_to_socket({
-                    "event": "scribe.error",
-                    "error": error_msg,
-                    "patient_id": patient_id,
-                })
-                return
+
+                # await send_to_socket({
+                #     "event": "scribe.error",
+                #     "error": error_msg,
+                #     "patient_id": patient_id,
+                # })
+                # return
+                pass
 
             fragment = result.get("transcript", "").strip()
 
