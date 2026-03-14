@@ -125,6 +125,8 @@ class ScribeAgent(BaseAgent):
                 current_date=datetime.now().strftime("%Y-%m-%d")
             )
 
+            logger.info(f"System prompt: {system_prompt}")
+
             # ── Run the LLM loop ──────────────────────────────────────────────
             # The LLM drives tool calls. We run until the loop completes.
             prompt_output = self.llm_model.prompt(

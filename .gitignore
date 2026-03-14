@@ -241,3 +241,6 @@ dist-ssr
 *.sw?
 
 .env
+
+test_nova_act.py
+chroma_db/

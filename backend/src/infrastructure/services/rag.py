@@ -1,24 +1,31 @@
-
-
 """
 RAG (Retrieval-Augmented Generation) service.
 
-Orchestrates the full retrieval pipeline:
-    1. Embed a plain-text query using Amazon Nova Embed (via Bedrock)
-    2. Query ChromaDB for the top-k most similar document chunks
-    3. Optionally re-rank results by a relevance threshold
-    4. Return structured, agent-ready context objects
+Orchestrates the full retrieval and ingestion pipeline:
 
-This service sits between the vector store (infrastructure) and the
-retriever tool (core/tools), keeping both layers clean and focused.
+Retrieval:
+    1. Embed a plain-text query via the injected embedding model
+    2. Query ChromaDB for the top-k most similar document chunks
+    3. Filter results by a relevance score threshold
+    4. Return structured, agent-ready RetrievedChunk objects
+
+Ingestion (moved from utils/ingest.py — called by the upload endpoint):
+    1. Accept pre-extracted text and metadata (PDF parsing stays in utils)
+    2. Chunk the text with a sentence-aware sliding window
+    3. Embed all chunks via the injected embedding model
+    4. Upsert into the vector store
+
+The service depends on abstractions only:
+    - BaseEmbeddingModel  (not BedrockEmbeddingModel directly)
+    - BaseVectorStore     (not ChromaVectorStore directly)
+
+This keeps the service fully testable and provider-agnostic.
 """
-import json
 import uuid
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import boto3
-from botocore.exceptions import ClientError
-
+from src.infrastructure.embedding_models.base import BaseEmbeddingModel
 from src.infrastructure.vector_store.base import BaseVectorStore
 from utils.logger import get_logger
 
@@ -29,13 +36,8 @@ logger = get_logger()
 # Constants
 # ---------------------------------------------------------------------------
 
-# Amazon Nova Embed model ID on Bedrock
-# Produces 1024-dimensional dense vectors
-NOVA_EMBED_MODEL_ID = "amazon.nova-2-multimodal-embeddings-v1:0"
-
-# Default retrieval settings
 DEFAULT_TOP_K = 5
-DEFAULT_SCORE_THRESHOLD = 0.35  # Chunks below this score are filtered out
+DEFAULT_SCORE_THRESHOLD = 0.35
 
 
 # ---------------------------------------------------------------------------
@@ -77,12 +79,12 @@ class RetrievedChunk:
 
     def to_context_string(self) -> str:
         """
-        Format the chunk as a readable context block for injection
-        into an LLM prompt. Each chunk is clearly delimited so the
-        model can cite sources accurately.
+        Format as a readable context block for LLM prompt injection.
+        Each chunk is clearly delimited so the model can cite sources.
         """
         return (
-            f"[SOURCE: {self.source} | TYPE: {self.doc_type} | RELEVANCE: {self.score}]\n"
+            f"[SOURCE: {self.source} | TYPE: {self.doc_type} | "
+            f"RELEVANCE: {self.score:.3f}]\n"
             f"{self.content}\n"
         )
 
@@ -95,45 +97,35 @@ class RAGService:
     """
     Retrieval-Augmented Generation service.
 
-    Wraps embedding generation and vector store querying into a single
-    high-level interface consumed by the retriever tool.
+    Depends on injected abstractions only — no direct boto3 / ChromaDB imports.
 
     Args:
-        vector_store: An initialized BaseVectorStore instance (ChromaDB)
-        aws_region: AWS region where the Bedrock endpoint is hosted
-        embed_model_id: Bedrock embedding model ID (defaults to Nova Embed)
+        embedding_model: Any BaseEmbeddingModel implementation
+        vector_store: Any BaseVectorStore implementation
         default_top_k: Default number of chunks to retrieve per query
         score_threshold: Minimum similarity score to include a chunk
     """
 
     def __init__(
         self,
+        embedding_model: BaseEmbeddingModel,
         vector_store: BaseVectorStore,
-        aws_region: str = "us-east-1",
-        embed_model_id: str = NOVA_EMBED_MODEL_ID,
         default_top_k: int = DEFAULT_TOP_K,
         score_threshold: float = DEFAULT_SCORE_THRESHOLD,
     ):
+        self.embedding_model = embedding_model
         self.vector_store = vector_store
-        self.embed_model_id = embed_model_id
         self.default_top_k = default_top_k
         self.score_threshold = score_threshold
 
-        # Bedrock runtime client — used only for embedding, not generation
-        self._bedrock = boto3.client(
-            service_name="bedrock-runtime",
-            region_name=aws_region,
-        )
-
         logger.info(
             f"RAGService initialized | "
-            f"embed_model={embed_model_id} | "
-            f"top_k={default_top_k} | "
-            f"threshold={score_threshold}"
+            f"embedding_model={embedding_model.__class__.__name__} | "
+            f"top_k={default_top_k} | threshold={score_threshold}"
         )
 
     # ------------------------------------------------------------------
-    # Public API — consumed by the retriever tool
+    # Retrieval — consumed by tools and the RAG router
     # ------------------------------------------------------------------
 
     async def retrieve(
@@ -147,33 +139,33 @@ class RAGService:
         Full retrieval pipeline: embed query → search → filter → return chunks.
 
         Args:
-            query: Plain-text clinical query from the agent
+            query: Plain-text clinical query from the agent or endpoint
             top_k: Number of chunks to retrieve (overrides instance default)
-            filters: Optional metadata filters passed to ChromaDB
+            filters: Optional metadata filters passed to the vector store
                      e.g. {"doc_type": "clinical_guideline"}
                           {"specialty": "cardiology"}
                           {"$and": [{"doc_type": "protocol"}, {"specialty": "icu"}]}
             score_threshold: Override minimum similarity score for this call
 
         Returns:
-            List of RetrievedChunk objects, sorted by relevance (highest first).
-            Returns an empty list if retrieval fails — never raises to the agent.
+            List of RetrievedChunk objects sorted by relevance (highest first).
+            Returns an empty list if retrieval fails — never raises to callers.
         """
         if not query or not query.strip():
             logger.warning("RAGService.retrieve called with empty query")
             return []
 
         k = top_k or self.default_top_k
-        threshold = score_threshold if score_threshold is not None else self.score_threshold
+        threshold = (
+            score_threshold if score_threshold is not None else self.score_threshold
+        )
 
         try:
-            # Step 1: Embed the query
-            query_embedding = await self._embed_text(query)
+            query_embedding = await self.embedding_model.embed_text(query)
             if not query_embedding:
                 logger.error("Embedding returned empty vector — aborting retrieval")
                 return []
 
-            # Step 2: Query the vector store
             raw_results = await self.vector_store.query(
                 query_embedding=query_embedding,
                 top_k=k,
@@ -181,17 +173,15 @@ class RAGService:
             )
 
             if not raw_results:
-                logger.info(f"No results found for query: '{query[:80]}...'")
+                logger.info(f"No results found for query: '{query[:80]}'")
                 return []
 
-            # Step 3: Filter by score threshold and build RetrievedChunk objects
             chunks = self._build_chunks(raw_results, threshold)
 
             logger.info(
-                f"Retrieved {len(chunks)}/{len(raw_results)} chunks above threshold "
-                f"({threshold}) for query: '{query[:60]}...'"
+                f"Retrieved {len(chunks)}/{len(raw_results)} chunks above "
+                f"threshold ({threshold}) for query: '{query[:60]}'"
             )
-
             return chunks
 
         except Exception as e:
@@ -206,14 +196,8 @@ class RAGService:
         score_threshold: Optional[float] = None,
     ) -> str:
         """
-        Retrieve chunks and format them as a single context string
+        Retrieve chunks and return them as a single formatted context string
         ready to be injected directly into an LLM prompt.
-
-        Args:
-            query: Plain-text clinical query
-            top_k: Number of chunks to retrieve
-            filters: Optional metadata filters
-            score_threshold: Minimum similarity score
 
         Returns:
             Formatted multi-chunk context string, or empty string if no results
@@ -233,79 +217,78 @@ class RAGService:
         return header + body
 
     # ------------------------------------------------------------------
-    # Embedding
+    # Ingestion — called by the upload endpoint via the router
     # ------------------------------------------------------------------
 
-    async def _embed_text(self, text: str) -> List[float]:
-        """
-        Embed a single text string using Amazon Nova Embed via Bedrock.
-
-        Nova Embed expects:
-            {"inputText": "..."}
-
-        And returns:
-            {"embedding": [...], "inputTextTokenCount": N}
-
-        Args:
-            text: Text to embed
-
-        Returns:
-            1024-dimensional embedding vector, or empty list on failure
-        """
-        try:
-            body = json.dumps({"inputText": text})
-
-            response = self._bedrock.invoke_model(
-                modelId=self.embed_model_id,
-                body=body,
-                contentType="application/json",
-                accept="application/json",
-            )
-
-            response_body = json.loads(response["body"].read())
-            embedding = response_body.get("embedding", [])
-
-            if not embedding:
-                logger.error("Nova Embed returned an empty embedding vector")
-                return []
-
-            logger.debug(f"Embedded text ({len(embedding)}-dim): '{text[:60]}...'")
-            return embedding
-
-        except ClientError as e:
-            logger.error(f"Bedrock embedding ClientError: {e}", exc_info=True)
-            return []
-        except Exception as e:
-            logger.error(f"Embedding failed: {e}", exc_info=True)
-            return []
-
-    async def embed_documents(
+    async def ingest_document(
         self,
-        texts: List[str],
-    ) -> List[List[float]]:
+        text: str,
+        metadata: Dict[str, Any],
+        doc_id_prefix: str,
+    ) -> int:
         """
-        Embed a batch of texts. Used by the ingestion pipeline (utils/ingest.py).
-        Calls Nova Embed individually per text — Bedrock does not support
-        batch embedding in a single call for Nova Embed.
+        Embed and upsert pre-processed document chunks into the vector store.
+
+        PDF parsing and chunking live in utils/ingest.py. This method
+        receives already-chunked text so the service stays focused on
+        the embedding + storage concern.
 
         Args:
-            texts: List of text strings to embed
+            text: Full document text (will be chunked internally)
+            metadata: Base metadata dict for the document
+                      (source filename, doc_type, and any extracted fields)
+            doc_id_prefix: Stable prefix for chunk IDs, e.g. "ng_001_patient_record"
 
         Returns:
-            List of embedding vectors in the same order as input texts.
-            Failed embeddings are returned as empty lists — caller should
-            validate before upserting.
+            Number of chunks successfully upserted, or 0 on failure
         """
-        embeddings = []
-        for i, text in enumerate(texts):
-            embedding = await self._embed_text(text)
-            embeddings.append(embedding)
+        # Lazy import to avoid circular dependency — ingest helpers are pure utils
+        from utils.ingest import chunk_text, prepare_documents
 
-            if (i + 1) % 10 == 0:
-                logger.info(f"Embedded {i + 1}/{len(texts)} documents...")
+        chunks = chunk_text(text)
+        if not chunks:
+            logger.error("No chunks produced — skipping ingestion")
+            return 0
 
-        logger.info(f"Batch embedding complete: {len(embeddings)} vectors generated")
-        return embeddings
+        logger.info(f"Embedding {len(chunks)} chunks...")
+
+        chunk_ids, metadatas = prepare_documents(chunks, metadata, doc_id_prefix)
+        embeddings = await self.embedding_model.embed_batch(chunks)
+
+        valid_documents = []
+        skipped = 0
+
+        for chunk_id, chunk_content, embedding, meta in zip(
+            chunk_ids, chunks, embeddings, metadatas
+        ):
+            if not embedding:
+                logger.warning(f"Skipping chunk '{chunk_id}' — embedding failed")
+                skipped += 1
+                continue
+
+            valid_documents.append({
+                "id": chunk_id,
+                "embedding": embedding,
+                "content": chunk_content,
+                "metadata": meta,
+            })
+
+        if skipped:
+            logger.warning(f"Skipped {skipped} chunks due to embedding failures")
+
+        if not valid_documents:
+            logger.error("No valid chunks to upsert")
+            return 0
+
+        logger.info(f"Upserting {len(valid_documents)} chunks into vector store...")
+        success = await self.vector_store.upsert(valid_documents)
+
+        if success:
+            logger.info(f"Successfully upserted {len(valid_documents)} chunks")
+            return len(valid_documents)
+
+        logger.error("Vector store upsert failed")
+        return 0
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -320,12 +303,8 @@ class RAGService:
         Convert raw vector store results into RetrievedChunk objects,
         filtering out anything below the score threshold.
 
-        Pulls `source` and `doc_type` from metadata as first-class fields
-        since they are the most useful for the agent to reason over.
-        Both fields fall back to "unknown" if not present in metadata.
-
         Args:
-            raw_results: Raw dicts from ChromaVectorStore.query()
+            raw_results: Raw dicts from BaseVectorStore.query()
             threshold: Minimum score to include
 
         Returns:
@@ -338,8 +317,8 @@ class RAGService:
 
             if score < threshold:
                 logger.debug(
-                    f"Chunk '{result.get('id')}' filtered out — "
-                    f"score {score} below threshold {threshold}"
+                    f"Chunk '{result.get('id')}' filtered — "
+                    f"score {score:.3f} below threshold {threshold}"
                 )
                 continue
 
