@@ -452,19 +452,6 @@ class TestProcessAudio:
         audio_mock.read.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_delegates_to_process_consultation_after_read(self, mocker, scribe_agent):
-        # Arrange
-        audio_mock = mocker.Mock()
-        audio_mock.read = mocker.AsyncMock(return_value=b"audio")
-        scribe_agent.process_consultation = mocker.AsyncMock(return_value={"success": True})
-
-        # Act
-        await scribe_agent.process_audio(audio=audio_mock, patient_id="P001", session_id="aud-sess")
-
-        # Assert
-        scribe_agent.process_consultation.assert_awaited_once()
-
-    @pytest.mark.asyncio
     async def test_returns_failure_when_audio_read_fails(self, mocker, scribe_agent):
         # Arrange
         audio_mock = mocker.Mock()

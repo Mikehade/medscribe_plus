@@ -244,3 +244,5 @@ dist-ssr
 
 test_nova_act.py
 chroma_db/
+my_video.mp4
+video-downloader.py

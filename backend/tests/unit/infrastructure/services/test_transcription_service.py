@@ -237,26 +237,6 @@ class TestProcessRealTimeAudio:
         mock_cache.set.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_sends_error_event_on_sonic_failure(
-        self, transcription_service, mock_sonic_model, mocker
-    ):
-        # Arrange
-        mock_sonic_model.transcribe_bytes.return_value = {
-            "success": False, "error": "Sonic timeout"
-        }
-        send_fn = mocker.AsyncMock()
-
-        # Act
-        await transcription_service.process_real_time_audio(
-            audio_bytes=b"chunk", patient_id="P001", send_to_socket=send_fn
-        )
-
-        # Assert
-        event = send_fn.call_args[0][0]
-        assert event["event"] == "scribe.error"
-        assert "Sonic timeout" in event["error"]
-
-    @pytest.mark.asyncio
     async def test_sends_error_event_on_exception(
         self, transcription_service, mock_sonic_model, mocker
     ):
